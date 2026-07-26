@@ -68,11 +68,18 @@ def test_a_citatrakenskap(r):
                 r.fel.append(f"A: källtext saknas för {c['dokument_id']} "
                              f"(NVRID {o['nvrid']})")
                 continue
-            if normalisera(c["citat"]) in normalisera(txt):
+            txt_norm = normalisera(txt)
+            if normalisera(c["citat"]) in txt_norm:
                 godkanda += 1
             else:
                 r.fel.append(f"A: citat matchar inte källan — NVRID {o['nvrid']}, "
                              f"dok {c['dokument_id']}: {c['citat'][:80]!r}")
+            # Föreskriftsinledningen är också text som visas för användaren och
+            # måste därför vara ordagrann.
+            if c.get("inledning"):
+                if normalisera(c["inledning"]) not in txt_norm:
+                    r.fel.append(f"A: föreskriftsinledning matchar inte källan — "
+                                 f"NVRID {o['nvrid']}: {c['inledning'][:80]!r}")
 
     # Samma citat ska också gå att hitta i den byggda HTML-sidan.
     kontrollerade_sidor = 0

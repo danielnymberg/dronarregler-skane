@@ -41,23 +41,49 @@ def dokumenttext_normaliserad(dokument_id):
 
 
 def verifiera_citat(traff):
-    """Returnerar (ok: bool, orsak: str|None)."""
+    """Returnerar (ok: bool, orsak: str|None, inledning_ok: bool).
+
+    Citatet och föreskriftsinledningen verifieras var för sig — de är två
+    fristående delsträngar ur samma sida och limmas aldrig ihop. Inledningen
+    måste dessutom ligga FÖRE citatet på sidan; gör den inte det är den inte
+    citatets rubrik och kasseras.
+    """
     doc = dokumenttext_normaliserad(traff["dokument_id"])
     if doc is None:
-        return False, "källtext saknas"
+        return False, "källtext saknas", False
     citat = normalisera(traff["citat"])
     if len(citat) < 25:
-        return False, "citatet för kort för meningsfull verifiering"
+        return False, "citatet för kort för meningsfull verifiering", False
+
     sidnr = traff.get("sidnummer")
-    if sidnr and 1 <= sidnr <= len(doc["sidor"]):
-        if citat in doc["sidor"][sidnr - 1]:
-            return True, None
+    if not (sidnr and 1 <= sidnr <= len(doc["sidor"])):
         if citat in doc["hel"]:
-            return False, "citatet finns i dokumentet men inte på angiven sida"
-        return False, "ingen ordagrann förekomst i dokumentet"
-    if citat in doc["hel"]:
-        return False, "sidnummer utanför dokumentets sidintervall"
-    return False, "ingen ordagrann förekomst i dokumentet"
+            return False, "sidnummer utanför dokumentets sidintervall", False
+        return False, "ingen ordagrann förekomst i dokumentet", False
+
+    sida = doc["sidor"][sidnr - 1]
+    pos = sida.find(citat)
+    if pos < 0:
+        if citat in doc["hel"]:
+            return False, "citatet finns i dokumentet men inte på angiven sida", False
+        return False, "ingen ordagrann förekomst i dokumentet", False
+
+    inledning = traff.get("inledning")
+    if not inledning:
+        return True, None, False
+    inl_sidnr = traff.get("inledning_sidnummer") or sidnr
+    if not (1 <= inl_sidnr <= len(doc["sidor"])):
+        return True, None, False
+    inl = normalisera(inledning)
+    inl_pos = doc["sidor"][inl_sidnr - 1].find(inl)
+    if inl_pos < 0:
+        # Citatet står kvar; bara inledningen kasseras.
+        return True, None, False
+    # På samma sida måste rubriken stå före punkten. På en tidigare sida är
+    # den per definition före.
+    if inl_sidnr == sidnr and inl_pos >= pos:
+        return True, None, False
+    return True, None, True
 
 
 def main():
@@ -85,14 +111,21 @@ def main():
         ok_lista = []
         for t in traffar:
             stats["citat_prövade"] += 1
-            ok, orsak = verifiera_citat(t)
+            ok, orsak, inl_ok = verifiera_citat(t)
             if ok:
                 stats["citat_godkanda"] += 1
+                if inl_ok:
+                    stats["inledningar_godkanda"] = stats.get("inledningar_godkanda", 0) + 1
+                elif t.get("inledning"):
+                    stats["inledningar_kasserade"] = stats.get("inledningar_kasserade", 0) + 1
                 k = t["klassificering"]
                 stats["per_klass_godkanda"][k] = stats["per_klass_godkanda"].get(k, 0) + 1
-                ok_lista.append({**t, "verifierad": True,
-                                 "verifieringsmetod": "ordagrann strängmatchning "
-                                                      "efter dokumenterad normalisering"})
+                post = {**t, "verifierad": True,
+                        "verifieringsmetod": "ordagrann strängmatchning efter "
+                                             "dokumenterad normalisering"}
+                if not inl_ok:
+                    post["inledning"] = None
+                ok_lista.append(post)
             else:
                 stats["citat_kasserade"] += 1
                 stats["felorsaker"][orsak] = stats["felorsaker"].get(orsak, 0) + 1

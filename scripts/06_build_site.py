@@ -49,13 +49,20 @@ FLERA_BESLUT = (
     "lydelse som gäller i dag — läs besluten i datumordning."
 )
 
+# Etiketterna beskriver vad citatet innehåller — de påstår aldrig vad
+# föreskriften betyder eller vad den innebär för en flygning.
 KLASS_ETIKETT = {
-    "uttryckligt-luftfartygsförbud": "Föreskrift som uttryckligen nämner luftfartyg",
-    "start-landningsförbud": "Föreskrift om start eller landning",
-    "motorfordon-möjligen-relevant": "Föreskrift om motordrivet fordon — möjligen relevant",
-    "störningsförbud-djurliv": "Föreskrift om störning av djurlivet",
-    "annat-läs-beslutet": "Annan möjligen berörd föreskrift",
+    "uttryckligt-luftfartygsförbud": "Nämner uttryckligen luftfartyg",
+    "start-landningsförbud": "Nämner start eller landning med luftfartyg",
+    "motorfordon-möjligen-relevant": "Nämner motordrivet fordon — möjligen relevant",
+    "störningsförbud-djurliv": "Nämner störning av djurlivet",
+    "annat-läs-beslutet": "Nämner tillträde eller framfart — läs beslutet",
 }
+# Ett citat vars punkt saknar förbudsuttryck, och vars föreskriftsinledning
+# inte kunde verifieras, kan lika gärna komma ur beslutets skäl som ur dess
+# föreskrifter. Det visas — men det får inte kallas föreskrift.
+LAG_KONFIDENS_TILLAGG = (" · står i beslutstexten utan att tjänsten kunnat "
+                         "knyta det till en föreskriftspunkt")
 
 LAGER_NAMN = {
     "nationalpark": "Nationalparker",
@@ -132,8 +139,16 @@ def sidmall(*, titel, beskrivning, kanonisk, innehall, bred=False,
 
 def rendera_citat(c):
     etikett = KLASS_ETIKETT.get(c["klassificering"], c["klassificering"])
+    if c.get("konfidens") == "låg":
+        etikett += LAG_KONFIDENS_TILLAGG
     punkt = f"Punkt {E(c['punkt'])}, " if c.get("punkt") else ""
+    # Föreskriftsinledningen är en egen, separat verifierad delsträng ur samma
+    # sida. Den visas som eget stycke ovanför punkten — aldrig hopskarvad med
+    # citatet till en ny textmassa.
+    inledning = (f"<blockquote>{E(c['inledning'])}</blockquote>"
+                 if c.get("inledning") else "")
     return f"""<div class="citat">
+{inledning}
 <blockquote>{E(c['citat'])}</blockquote>
 <div class="kalla">
 <span class="chip">{E(etikett)}</span>
