@@ -26,6 +26,35 @@ from lib.geom import bbox, forenkla_geometri, ring_area_m2
 TOL = CONFIG["simplify_tolerance_m"]
 
 
+MAX_YTFORLUST_PROCENT = 2.0
+TOLERANSTRAPPA = (TOL, TOL / 3.0, TOL / 10.0)
+
+
+def forenkla_med_ytgrans(geom):
+    """Förenkla, men aldrig mer än MAX_YTFORLUST_PROCENT av objektets nettoyta.
+
+    En fast tolerans på 15 m är rimlig för ett stort reservat men äter en
+    orimlig andel av ett litet, avlångt objekt — vid mätning tappade ett objekt
+    18,6 % av sin yta. Toleransen trappas därför ned per objekt tills förlusten
+    ligger under gränsen, och i sista hand behålls originalgeometrin.
+
+    Returnerar (geometri, statistik, använd_tolerans_m). Använd tolerans 0
+    betyder att originalet behölls.
+    """
+    for tol in TOLERANSTRAPPA:
+        enkel, fstat = forenkla_geometri(geom, tol)
+        fore = fstat["yta_fore_m2"]
+        if fore <= 0:
+            return enkel, fstat, tol
+        forlust = (1 - fstat["yta_efter_m2"] / fore) * 100
+        if forlust <= MAX_YTFORLUST_PROCENT:
+            return enkel, fstat, tol
+    _, fstat = forenkla_geometri(geom, 0.0)
+    fstat["punkter_efter"] = fstat["punkter_fore"]
+    fstat["yta_efter_m2"] = fstat["yta_fore_m2"]
+    return geom, fstat, 0.0
+
+
 def slug_ihop(objekt):
     """Unika slugs; kollisioner får NVRID-suffix."""
     tagna, ut = {}, {}
@@ -149,14 +178,22 @@ hamtningsdatum        str
 
 ```
 citat                 str   ordagrann delsträng ur dokumentets extraherade text
+inledning             str|null  föreskriftsblockets rubrik ("Det är förbjudet att:"),
+                            en EGEN sammanhängande delsträng ur samma dokument —
+                            aldrig hopskarvad med citatet — separat verifierad.
+                            null om ingen rubrik kunde verifieras.
+inledning_sidnummer   int|null  sidan rubriken står på (kan vara sidan före)
 punkt                 str|null  punkt-/paragrafmarkör, t.ex. "7." eller "§ 5"
 sidnummer             int   1-indexerat sidnummer i källdokumentet
 teckenoffset_pa_sidan int   startposition i sidans text
 klassificering        str   uttryckligt-luftfartygsförbud | start-landningsförbud |
                             motorfordon-möjligen-relevant | störningsförbud-djurliv |
                             annat-läs-beslutet
-konfidens             str   "hög" om segmentet innehåller ett förbuds- eller
-                            tillståndsuttryck, annars "medel"
+konfidens             str   "hög"  = förbudsuttryck står i punkten själv
+                            "medel" = förbudsuttryck står i den verifierade
+                                      rubriken, eller punkten är numrerad
+                            "låg"   = varken eller; texten kan lika gärna komma
+                                      ur beslutets skäl som ur dess föreskrifter
 dokument_id           str
 dokument_namn         str
 dokument_url          str   direktlänk till källdokumentet
@@ -178,13 +215,28 @@ ordning. Substansen är citatet.
   WFS-svaret från Naturvårdsverket, bortsett från att flera WFS-rader med
   samma NVRID lagts i samma MultiPolygon. Det är den geometri som ska
   användas för punkt-i-polygon.
-- `areas.geojson` är förenklad med Douglas–Peucker, tolerans
-  **{forenkling['tolerans_m']} m**, med krympgaranti: en ring vars yta skulle
-  bli större av förenklingen behålls oförenklad. Vid detta bygge behölls
-  {forenkling['ringar_behallna']} ringar oförenklade, punktantalet gick från
-  {forenkling['punkter_fore']} till {forenkling['punkter_efter']}, och största
-  ytminskning för ett enskilt objekt var
-  {forenkling['max_ytminskning_procent']} %.
+- `areas.geojson` är förenklad med Douglas–Peucker, utgångstolerans
+  **{forenkling['tolerans_m']} m**, koordinater avrundade till
+  {forenkling['koordinatdecimaler']} decimaler (~1 m), med två garantier:
+
+  1. **Ytan växer aldrig.** Ytterringar får inte bli större, hålringar inte
+     mindre, och skulle en polygons nettoyta ändå ha vuxit behålls polygonen
+     oförenklad. Garantin kontrolleras på exakt de koordinater som hamnar i
+     filen, efter avrundning.
+  2. **Ytförlusten per objekt är högst
+     {forenkling['max_ytforlust_procent_per_objekt']} %.** Toleransen trappas
+     ned per objekt tills kravet är uppfyllt, och i sista hand behålls
+     originalgeometrin. En fast tolerans är rimlig för ett stort reservat men
+     äter en orimlig andel av ett litet, avlångt objekt.
+
+  Vid detta bygge: punktantalet gick från {forenkling['punkter_fore']} till
+  {forenkling['punkter_efter']}, {forenkling['ringar_behallna']} ringar behölls
+  oförenklade, största ytminskning för ett enskilt objekt var
+  {forenkling['max_ytminskning_procent']} % (NVRID
+  {forenkling['max_ytminskning_procent_objekt']}), och hela datamängdens yta
+  gick från {forenkling['total_yta_fore_m2']:.0f} till
+  {forenkling['total_yta_efter_m2']:.0f} m².
+  Använd tolerans per objekt: {forenkling['objekt_per_anvand_tolerans']}.
 - Inga buffertar, cirklar eller uppskattade zoner förekommer någonstans i
   databasen.
 
@@ -228,8 +280,15 @@ def main():
     ensure_dir(os.path.join(DATA, "omraden"))
 
     features, bbox_index = [], []
-    forenkling = {"punkter_fore": 0, "punkter_efter": 0, "ringar_behallna": 0,
-                  "max_ytminskning_procent": 0.0, "objekt_med_ytokning": 0}
+    forenkling = {"tolerans_m": TOL, "koordinatdecimaler": 5,
+                  "punkter_fore": 0, "punkter_efter": 0, "ringar_behallna": 0,
+                  "total_yta_fore_m2": 0.0, "total_yta_efter_m2": 0.0,
+                  "max_ytminskning_procent": 0.0,
+                  "max_ytminskning_procent_objekt": None,
+                  "objekt_med_ytokning": 0,
+                  "max_ytforlust_procent_per_objekt": MAX_YTFORLUST_PROCENT,
+                  "objekt_per_anvand_tolerans": {},
+                  "_matgrans_ha": 1.0}
     stats = {"med_verifierade_citat": 0, "lanklage": 0, "utan_geometri": 0,
              "med_ocr": 0, "med_sasongsdata": 0}
 
@@ -299,16 +358,27 @@ def main():
             omrade["geometri"] = geom       # OFÖRENKLAD — används för punkt-i-polygon
             bb = bbox(geom)
             omrade["bbox"] = bb
-            enkel, fstat = forenkla_geometri(geom, TOL)
+            enkel, fstat, anvand_tol = forenkla_med_ytgrans(geom)
             forenkling["punkter_fore"] += fstat["punkter_fore"]
             forenkling["punkter_efter"] += fstat["punkter_efter"]
             forenkling["ringar_behallna"] += fstat["ringar_behallna"]
-            if fstat["yta_fore_m2"] > 0:
-                minskning = (1 - fstat["yta_efter_m2"] / fstat["yta_fore_m2"]) * 100
-                forenkling["max_ytminskning_procent"] = max(
-                    forenkling["max_ytminskning_procent"], round(minskning, 3))
-                if minskning < -0.0001:
-                    forenkling["objekt_med_ytokning"] += 1
+            nyckel = f"{anvand_tol:g} m" if anvand_tol else "oförenklad"
+            forenkling["objekt_per_anvand_tolerans"][nyckel] = (
+                forenkling["objekt_per_anvand_tolerans"].get(nyckel, 0) + 1)
+            forenkling["total_yta_fore_m2"] += fstat["yta_fore_m2"]
+            forenkling["total_yta_efter_m2"] += fstat["yta_efter_m2"]
+            if fstat["yta_efter_m2"] > fstat["yta_fore_m2"] + 1e-6:
+                forenkling["objekt_med_ytokning"] += 1
+            # Relativ minskning mäts bara för objekt över 1 ha. Under det blir
+            # procenttalet meningslöst: ett objekt vars hål nästan äter upp
+            # ytterringen har en nettoyta nära noll, och då exploderar kvoten
+            # utan att geometrin flyttat sig mer än någon meter.
+            if fstat["yta_fore_m2"] >= 10_000:
+                minskning = round(
+                    (1 - fstat["yta_efter_m2"] / fstat["yta_fore_m2"]) * 100, 3)
+                if minskning > forenkling["max_ytminskning_procent"]:
+                    forenkling["max_ytminskning_procent"] = minskning
+                    forenkling["max_ytminskning_procent_objekt"] = nvrid
             features.append({
                 "type": "Feature",
                 "geometry": enkel,
@@ -347,7 +417,7 @@ def main():
 
     manifest["databygge"] = {
         "datum": today(),
-        "forenkling": {**forenkling, "tolerans_m": TOL,
+        "forenkling": {**forenkling,
                        "regel": "Douglas–Peucker med krympgaranti: en ring vars "
                                 "yta skulle växa av förenklingen behålls oförenklad"},
         "statistik": stats,

@@ -333,7 +333,9 @@ def omradessida(o, manifest):
     return sidmall(titel=titel, beskrivning=beskrivning, kanonisk=kanonisk,
                    innehall="\n".join(d), data_datum=datum, schema=schema,
                    extra_head='\n<script defer src="/vendor/leaflet/leaflet.js"></script>'
-                              '\n<script defer src="/assets/app.js"></script>')
+                              '\n<script defer src="/assets/app.js"></script>'
+                              f'\n<script>window.DK_LFV={json.dumps(CONFIG["lfv_wms"])};'
+                              f'window.DK_ANSVARSTEXT={json.dumps(ANSVARSTEXT)};</script>')
 
 
 def startsida(manifest, bboxindex):

@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 
 JORDRADIE = 6371008.8
+DECIMALER = 5      # ~1,1 m i longitud vid Skånes breddgrad
 
 
 def _skala(lat_deg):
@@ -61,12 +62,41 @@ def _dp(punkter, tol_m, mx, my):
     return vanster[:-1] + hoger
 
 
-def forenkla_ring(ring, tol_m):
-    """Douglas–Peucker med krympgaranti.
+def har_sjalvskarning(ring, max_punkter=2000):
+    """Enkel självskärningskontroll (O(n²), hoppas över för mycket stora ringar)."""
+    n = len(ring) - 1
+    if n > max_punkter or n < 4:
+        return False
 
-    Returnerar (ny_ring, forenklad: bool). Om förenklingen skulle ge en
-    större yta än originalet returneras originalringen orörd — då kan den
-    ritade ytan aldrig påstå mer utbredning än myndighetens geometri.
+    def skar(a, b, c, d):
+        def ori(p, q, r):
+            v = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+            return 0 if abs(v) < 1e-14 else (1 if v > 0 else 2)
+        o1, o2, o3, o4 = ori(a, b, c), ori(a, b, d), ori(c, d, a), ori(c, d, b)
+        return o1 != o2 and o3 != o4
+
+    for i in range(n):
+        for j in range(i + 2, n):
+            if i == 0 and j == n - 1:
+                continue
+            if skar(ring[i], ring[i + 1], ring[j], ring[j + 1]):
+                return True
+    return False
+
+
+def forenkla_ring(ring, tol_m, ar_hal=False):
+    """Douglas–Peucker med krympgaranti på nettoytan.
+
+    Returnerar (ny_ring, forenklad: bool).
+
+    Nettoytan är ytterring minus hål. För att förenklingen aldrig ska kunna
+    påstå större utbredning än myndighetens geometri gäller därför två olika
+    krav:
+
+      ytterring  — får inte bli STÖRRE (då växer ytan)
+      hålring    — får inte bli MINDRE (då krymper hålet och ytan växer)
+
+    Bryts kravet returneras originalringen orörd.
     """
     if len(ring) <= 5:
         return ring, False
@@ -87,8 +117,19 @@ def forenkla_ring(ring, tol_m):
         ny = ny + [ny[0]]
     if len(ny) < 4:
         return ring, False
-    if ring_area_m2(ny) > ring_area_m2(ring):
-        return ring, False       # förenklingen växte — behåll originalet
+    # Avrunda till 5 decimaler (~1 m) INNAN garantin kontrolleras, så att
+    # kravet gäller exakt de koordinater som hamnar i areas.geojson.
+    ny = [[round(x, DECIMALER), round(y, DECIMALER)] for x, y in ny]
+    if ny[0] != ny[-1]:
+        ny[-1] = list(ny[0])
+    ny_yta, org_yta = ring_area_m2(ny), ring_area_m2(ring)
+    if (ny_yta < org_yta) if ar_hal else (ny_yta > org_yta):
+        return ring, False       # ytkravet brutet — behåll originalet
+    # Douglas–Peucker på en sluten ring kan i sällsynta fall låta två
+    # förenklade segment korsa varandra. En självskärande ring är ogiltig
+    # geometri och renderas oförutsägbart — behåll originalet i stället.
+    if har_sjalvskarning(ny):
+        return ring, False
     return ny, len(ny) < len(ring)
 
 
@@ -98,16 +139,28 @@ def forenkla_geometri(geom, tol_m):
             "yta_fore_m2": 0.0, "yta_efter_m2": 0.0}
 
     def gor_polygon(rings):
-        ut = []
+        ut, fore, efter, punkter_efter, behallna = [], 0.0, 0.0, 0, 0
         for j, ring in enumerate(rings):
-            stat["punkter_fore"] += len(ring)
-            stat["yta_fore_m2"] += ring_area_m2(ring) * (1 if j == 0 else -1)
-            ny, andrad = forenkla_ring(ring, tol_m)
+            tecken = 1 if j == 0 else -1
+            fore += ring_area_m2(ring) * tecken
+            ny, andrad = forenkla_ring(ring, tol_m, ar_hal=(j != 0))
             if not andrad:
-                stat["ringar_behallna"] += 1
-            stat["punkter_efter"] += len(ny)
-            stat["yta_efter_m2"] += ring_area_m2(ny) * (1 if j == 0 else -1)
+                behallna += 1
+            punkter_efter += len(ny)
+            efter += ring_area_m2(ny) * tecken
             ut.append(ny)
+        # Sista spärren: skulle polygonens NETTOyta ändå ha vuxit — t.ex. för
+        # att en ytterring degenererat — behålls hela polygonen oförenklad.
+        if efter > fore:
+            ut = [list(r) for r in rings]
+            punkter_efter = sum(len(r) for r in rings)
+            efter = fore
+            behallna = len(rings)
+        stat["punkter_fore"] += sum(len(r) for r in rings)
+        stat["punkter_efter"] += punkter_efter
+        stat["ringar_behallna"] += behallna
+        stat["yta_fore_m2"] += fore
+        stat["yta_efter_m2"] += efter
         return ut
 
     t = geom["type"]
@@ -174,23 +227,3 @@ def avstand_m(lon1, lat1, lon2, lat2):
     return 2 * JORDRADIE * math.asin(math.sqrt(a))
 
 
-def har_sjalvskarning(ring, max_punkter=2000):
-    """Enkel självskärningskontroll (O(n²), hoppas över för mycket stora ringar)."""
-    n = len(ring) - 1
-    if n > max_punkter or n < 4:
-        return False
-
-    def skar(a, b, c, d):
-        def ori(p, q, r):
-            v = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
-            return 0 if abs(v) < 1e-14 else (1 if v > 0 else 2)
-        o1, o2, o3, o4 = ori(a, b, c), ori(a, b, d), ori(c, d, a), ori(c, d, b)
-        return o1 != o2 and o3 != o4
-
-    for i in range(n):
-        for j in range(i + 2, n):
-            if i == 0 and j == n - 1:
-                continue
-            if skar(ring[i], ring[i + 1], ring[j], ring[j + 1]):
-                return True
-    return False

@@ -116,10 +116,12 @@ def test_b_geometriproveniens(r):
     nvrid_i_areas = {f["properties"]["nvrid"] for f in areas["features"]}
     tol = manifest["databygge"]["forenkling"]["tolerans_m"]
 
+    max_forlust = manifest["databygge"]["forenkling"]["max_ytforlust_procent_per_objekt"]
     foraldralosa = 0
     ogiltiga = 0
     vaxta = 0
     kollade_ringar = 0
+    storsta_forlust = 0.0
     for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
         o = read_json(os.path.join(DIST, "data", "omraden", fil))
         g = o.get("geometri")
@@ -167,13 +169,22 @@ def test_b_geometriproveniens(r):
                 vaxta += 1
                 r.fel.append(f"B: förenklad yta större än originalet — NVRID {nvrid} "
                              f"({ny_yta:.0f} > {org_yta:.0f} m²)")
+            if org_yta > 0:
+                forlust = (1 - ny_yta / org_yta) * 100
+                if forlust > max_forlust + 0.01:
+                    r.fel.append(f"B: ytförlusten {forlust:.2f} % överskrider den "
+                                 f"dokumenterade gränsen {max_forlust} % — "
+                                 f"NVRID {nvrid}")
+                storsta_forlust = max(storsta_forlust, forlust)
 
     r.kolla(foraldralosa == 0, f"B: {foraldralosa} föräldralösa geometrier")
     r.kolla(ogiltiga == 0, f"B: {ogiltiga} ogiltiga ringar efter förenkling")
     r.kolla(vaxta == 0, f"B: {vaxta} objekt där förenklingen ökade ytan "
                         "(krympgarantin bruten)")
     r.notera(f"B: {len(areas['features'])} visningsgeometrier, {kollade_ringar} ringar "
-             f"kontrollerade, tolerans {tol} m, alla spårbara till källhash")
+             f"kontrollerade, utgångstolerans {tol} m, största uppmätta ytförlust "
+             f"{storsta_forlust:.2f} % (gräns {max_forlust} %), ingen yta växte, "
+             "alla spårbara till källhash")
 
 
 # ---------------------------------------------------------------- C
@@ -269,16 +280,25 @@ def test_c_golden(r):
         lager_i_bruk = {o["lager"] for o in
                         (read_json(os.path.join(DIST, "data", "omraden", f))
                          for f in os.listdir(os.path.join(DIST, "data", "omraden")))}
-        from importlib import import_module
-        bs = import_module("06_build_site") if False else None  # undvik sidoeffekter
-        for lager in ["nationalpark", "naturreservat", "djur-och-vaxtskydd",
-                      "kulturreservat", "naturminne", "vattenskyddsomrade",
-                      "landskapsbildsskydd", "interimistiskt-forbud",
-                      "naturreservat-kommunalt"]:
-            # varje lager i scope ska nämnas på sidan, även de tomma
-            pass
-        tomma = [l for l in ["interimistiskt-forbud", "naturreservat-kommunalt"]
-                 if l not in lager_i_bruk]
+        # Varje lager i scope ska stå på /kallor/ med hämtningsdatum — även de
+        # som saknar objekt i länet. Ett tomt lager får inte tyst försvinna.
+        LAGER_I_SCOPE = {
+            "nationalpark": "Nationalparker",
+            "naturreservat": "Naturreservat (statligt beslutade)",
+            "naturreservat-kommunalt": "Naturreservat (kommunalt beslutade)",
+            "naturvardsomrade": "Naturvårdsområden",
+            "djur-och-vaxtskydd": "Djur- och växtskyddsområden",
+            "kulturreservat": "Kulturreservat",
+            "interimistiskt-forbud": "Interimistiska förbud",
+            "naturminne": "Naturminnen",
+            "vattenskyddsomrade": "Vattenskyddsområden",
+            "landskapsbildsskydd": "Landskapsbildsskyddsområden",
+            "biotopskydd": "Övriga biotopskyddsområden",
+        }
+        for lager, namn in LAGER_I_SCOPE.items():
+            r.kolla(namn in sida,
+                    f"C4: lagret '{namn}' saknas i täckningsdeklarationen")
+        tomma = [l for l in LAGER_I_SCOPE if l not in lager_i_bruk]
         if tomma:
             r.kolla("Denna källa täcks inte här" in sida,
                     "C4: tomma lager saknar svarsläge 3 på /kallor/")
@@ -307,28 +327,36 @@ def test_c_golden(r):
 
     # C6 Ingen LFV-vektor.
     misstankta = []
-    for dirpath, _, filnamn in os.walk(ROOT):
-        if any(d in dirpath for d in (".git", "cache", "dist" + os.sep + "data")):
+    # Skanna det som faktiskt bygger och kör tjänsten. tests/ utelämnas — den
+    # här filen innehåller själv mönstren den letar efter.
+    granskade_rotter = [os.path.join(ROOT, d) for d in ("scripts", "site", ".github")]
+    granskade_rotter.append(DIST)
+    monster = [
+        (r"daim\.lfv\.se[^\s\"']*wfs", "anrop mot LFV:s WFS"),
+        (r"service=WFS[^\"']*lfv", "WFS-anrop mot LFV"),
+        (r"lfv[^\n]{0,80}(outputFormat|GetFeature)", "vektoruttag från LFV"),
+    ]
+    for rot in granskade_rotter:
+        if not os.path.isdir(rot):
             continue
-        for fn in filnamn:
-            if not fn.endswith((".py", ".js", ".json", ".html", ".yml", ".yaml")):
+        for dirpath, _, filnamn in os.walk(rot):
+            if os.path.sep + "data" in dirpath:
                 continue
-            p = os.path.join(dirpath, fn)
-            try:
-                with open(p, encoding="utf-8", errors="replace") as fh:
-                    text = fh.read()
-            except OSError:
-                continue
-            if "daim.lfv.se" not in text and "lfv" not in text.lower():
-                continue
-            for pattern, varfor in [
-                (r"daim\.lfv\.se[^\s\"']*wfs", "anrop mot LFV:s WFS"),
-                (r"service=WFS[^\"']*lfv", "WFS-anrop mot LFV"),
-                (r"lfv[^\n]{0,80}(outputFormat|GetFeature)", "vektoruttag från LFV"),
-            ]:
-                for hit in re.finditer(pattern, text, re.I):
-                    misstankta.append(f"{os.path.relpath(p, ROOT)}: {varfor} "
-                                      f"({hit.group(0)[:60]!r})")
+            for fn in filnamn:
+                if not fn.endswith((".py", ".js", ".json", ".html", ".yml", ".yaml")):
+                    continue
+                p = os.path.join(dirpath, fn)
+                try:
+                    with open(p, encoding="utf-8", errors="replace") as fh:
+                        text = fh.read()
+                except OSError:
+                    continue
+                if "lfv" not in text.lower():
+                    continue
+                for pattern, varfor in monster:
+                    for hit in re.finditer(pattern, text, re.I):
+                        misstankta.append(f"{os.path.relpath(p, ROOT)}: {varfor} "
+                                          f"({hit.group(0)[:60]!r})")
     r.kolla(not misstankta, f"C6: möjlig LFV-vektoranvändning: {misstankta}")
     if not misstankta:
         r.notera("C6: ingen kod anropar LFV:s WFS eller lagrar LFV-geometri ✓")

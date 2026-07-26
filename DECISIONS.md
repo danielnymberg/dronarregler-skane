@@ -178,6 +178,66 @@ stället för att påstå en rättsföljd: `uttryckligt-luftfartygsförbud` visa
 "Föreskrift som uttryckligen nämner luftfartyg". Nyckelvärdena i JSON behåller
 uppdragets vokabulär för maskinläsning.
 
+### D-13b — Föreskriftsinledningen hämtas som en egen delsträng
+I svenska reservatsbeslut står förbudsordet i blockets rubrik, inte i
+punkterna: `Det är förbjudet att inom reservatet:` följt av `6. framföra cykel
+eller motordrivet fordon annat än på allmän väg,`. Punkten ensam saknar både
+sitt förbud och sitt sammanhang — vid provkörning missades den helt.
+
+Att limma ihop rubrik + punkt till en textmassa hade brutit R1 (det blir en
+konstruerad text som inte står så i beslutet). Lösningen är att hämta rubriken
+som en **egen sammanhängande delsträng** ur samma dokument, verifiera den
+separat i steg 4, och visa den som ett eget stycke ovanför punkten. Rubriken
+måste dessutom stå *före* punkten på sidan, annars kasseras den.
+
+Långa föreskriftslistor löper över sidbrytningar, så rubriken får hämtas från
+föregående sida — då verifieras den mot den sidan, och sidnumret följer med i
+`inledning_sidnummer`.
+
+### D-13c — Tre klasser av falsklarm hittade vid provkörning och åtgärdade
+Extraktionen provkördes mot de 21 dokument som hunnit textextraheras innan
+resten var klara. Tre systematiska falsklarm syntes direkt:
+
+1. **Beskrivande prosa klassad som föreskrift.** "Vid en fågelinventering av
+   området har totalt 36 arter noterats" hamnade i `störningsförbud-djurliv`.
+   Det är text ur områdesbeskrivningen, inte en föreskrift.
+   *Åtgärd:* ett förbuds- eller tillståndsuttryck krävs nu i punkten eller i
+   dess verifierade rubrik. Utan det kasseras träffen.
+
+2. **Uppräkningar av angränsande lagstiftning.** En punktlista där ett stycke
+   nämnde "förbud mot körning i terräng" och ett annat "flygning med
+   flygskärm" gav en träff, trots att orden inte hade något med varandra att
+   göra. Det är exakt det trubbiga larm R8 varnar för.
+   *Åtgärd:* närhetskrav på 200 tecken mellan triggerordet och
+   förbudsuttrycket — såvida inte förbudet kommer ur den verifierade rubriken.
+
+3. **Svaga luftfartstermer.** "flyga", "flygning" och "flyger" träffar lika
+   gärna text om fågellivet som om drönare.
+   *Åtgärd:* termerna delades i starka (drönare, UAS, UAV, luftfartyg,
+   luftfarkost, modellflyg, helikopter, flygplan — kan bara syfta på farkoster)
+   och svaga. Starka termer visas alltid; svaga bara i föreskriftssammanhang.
+
+Provkörningen visade också ett fynd som bekräftar varför ordagrannhet är rätt
+princip: ett beslut förbjuder att "flyga fjärrmanövrerat obemannat luftfartyg
+exempelvis drönare **på en höjd understigande 120 meter över medelhavsnivå**".
+En sammanfattning hade med stor sannolikhet tappat höjdbandet — och det är
+just den tredje felklassen uppdraget säger att tjänsten ska vara immun mot.
+Ordagrant citat bevarar det utan att någon behöver tänka på saken.
+
+### D-13d — Konfidens säger var förbudsordet står, inget annat
+- **hög** — förbudsuttrycket står i punkten själv
+- **medel** — det står i den verifierade rubriken, eller punkten är numrerad
+  (en numrerad punkt i ett myndighetsbeslut är strukturellt en
+  föreskriftspunkt även när textextraktionen tappat rubriken)
+- **låg** — varken eller
+
+Citat med låg konfidens visas fortfarande, men får en egen etikett: "står i
+beslutstexten utan att tjänsten kunnat knyta det till en föreskriftspunkt". Det
+träffar i praktiken beslutens *skäl* — meningar som "Drönare och andra
+motordrivna luftfarkoster blir allt vanligare" — som är relevant läsning men
+inte föreskrifter. Att kalla dem föreskrifter hade varit fel; att dölja dem
+hade varit att säga mindre än källan gör.
+
 ### D-14 — Citat kapas vid meningsgräns, aldrig mitt i
 Segment kan vara långa. Citat kapas vid 700 tecken, alltid vid närmaste
 meningsslut inom gränsen, och alltid som ett prefix av segmentet. Ett kapat
@@ -208,14 +268,44 @@ mot att en regression i normaliseringen släpper igenom gamla citat.
 ## Geometri och rendering
 
 ### D-18 — Förenkling med krympgaranti, tolerans 15 m
-Douglas–Peucker med 15 m tolerans för visningsgeometrin. R3 tillåter förenkling
-som "krymper eller behåller" ytan. DP garanterar inte det, så efter förenkling
-jämförs ringens yta med originalets: **blir den större behålls originalringen
-oförenklad**. Antalet behållna ringar och största ytminskning skrivs i
-manifestet och i `data/README.md`, och test B faller om någon yta växt.
+Douglas–Peucker med 15 m utgångstolerans för visningsgeometrin. R3 tillåter
+förenkling som "krymper eller behåller" ytan. DP garanterar inte det, så
+resultatet kontrolleras mot originalet.
 
 Originalgeometrin ligger oförenklad i `data/omraden/{nvrid}.json` och är den
 enda som används för punkt-i-polygon — både i testerna och i webbklienten.
+
+### D-18b — Fyra fel i krympgarantin, funna genom att mäta i stället för att anta
+Första implementationen såg korrekt ut och var det inte. Mätning av utfallet
+avslöjade fyra separata fel, alla åtgärdade:
+
+1. **Hål behandlades som ytterringar.** Garantin "ringen får inte växa"
+   tillämpades på alla ringar. Men nettoytan är ytterring *minus* hål — en
+   krympt hålring gör alltså ytan **större**. Resultatet: 83 objekt växte.
+   *Åtgärd:* ytterringar får inte bli större, hålringar inte mindre.
+2. **Mätetalet var meningslöst för små ytor.** "Största ytminskning" landade på
+   1 042 % — matematiskt omöjligt. Orsaken var objekt vars hål nästan äter upp
+   ytterringen: nettoytan är nära noll och kvoten exploderar utan att geometrin
+   flyttat sig mer än någon meter.
+   *Åtgärd:* relativ minskning mäts bara för objekt över 1 ha, och totalytan
+   före/efter redovisas separat (−0,05 % för hela datamängden).
+3. **En fast tolerans slog orimligt mot små objekt.** Ett objekt tappade 18,6 %
+   av sin yta — 15 m är rimligt för ett stort reservat men inte för ett litet,
+   avlångt. *Åtgärd:* hård gräns på **2 % ytförlust per objekt**; toleransen
+   trappas ned (15 → 5 → 1,5 m) tills kravet är uppfyllt, och i sista hand
+   behålls originalet. Utfall: 579 objekt vid 15 m, 50 vid 5 m, 6 vid 1,5 m,
+   5 oförenklade.
+4. **Fyra ringar blev självskärande.** DP på en sluten ring kan låta två
+   förenklade segment korsa varandra. Självskärande polygoner renderas
+   oförutsägbart. *Åtgärd:* självskärningskontroll efter förenkling; slår den
+   till behålls originalringen. Test B faller på självskärning.
+
+Koordinaterna avrundas dessutom till 5 decimaler (~1 m) **innan** garantin
+kontrolleras, så att kravet gäller exakt de siffror som hamnar i filen och inte
+ett mellanled.
+
+Lärdomen är inte att förenkling är svårt, utan att en garanti som inte mäts
+inte är en garanti. Alla fyra felen fanns i kod som såg rätt ut.
 
 ### D-19 — Flera WFS-rader med samma NVRID slås ihop till en MultiPolygon
 644 WFS-rader gav 640 unika NVRID. Delarna läggs i samma MultiPolygon utan att

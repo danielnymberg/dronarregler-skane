@@ -210,8 +210,7 @@
       navigator.geolocation.getCurrentPosition(function (pos) {
         var lat = pos.coords.latitude, lon = pos.coords.longitude;
         L.circleMarker([lat, lon], { radius: 6, color: "#0b4f8a", weight: 3,
-          fillColor: "#fff", fillOpacity: 1 }).addTo(karta)
-          .bindTooltip("Din position").addTo(karta);
+          fillColor: "#fff", fillOpacity: 1 }).bindTooltip("Din position").addTo(karta);
         karta.setView([lat, lon], 12);
         svaraForPosition(lon, lat);
       }, function (err) {
