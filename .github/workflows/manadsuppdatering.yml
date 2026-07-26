@@ -1,0 +1,73 @@
+name: Månadsuppdatering av data
+
+# INAKTIVERAD schemaläggning enligt Fas 0 fråga 6.
+# Jobbet går bara att starta manuellt (Actions → Månadsuppdatering → Run workflow)
+# tills schemat aktiveras. Aktivera genom att avkommentera schedule-blocket:
+#
+# on:
+#   schedule:
+#     - cron: "17 3 1 * *"     # 03:17 UTC den 1:a varje månad
+#   workflow_dispatch:
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Committa uppdaterad data/ och dist/ om testsviten är grön"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  uppdatera:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installera systempaket
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-swe
+          tesseract --list-langs
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Cachen gör att oförändrade dokument varken hämtas om eller OCR-tolkas om.
+      - name: Återställ dokumentcache
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: dokumentcache-${{ github.run_id }}
+          restore-keys: dokumentcache-
+
+      - name: Kör månadsuppdateringen
+        run: python3 scripts/uppdatera.py
+
+      - name: Full testsvit inklusive länkhälsa
+        run: python3 tests/test_suite.py
+
+      - name: Ladda upp verifieringsrapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verifieringsrapport
+          path: |
+            data/verification-report.json
+            data/uppdateringsdiff.json
+
+      - name: Committa uppdaterad data
+        if: ${{ inputs.commit }}
+        run: |
+          git config user.name "manadsuppdatering"
+          git config user.email "actions@github.com"
+          git add data dist
+          if git diff --cached --quiet; then
+            echo "Inga ändringar att committa."
+          else
+            git commit -m "Månadsuppdatering av data $(date -u +%Y-%m-%d)"
+            git push
+          fi

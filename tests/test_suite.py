@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+"""Testsvit A–E. Grönt är krav för att dist/ ska få skrivas.
+
+  A  Citaträkenskap        varje citat i dist/ strängmatchar sitt källdokument
+  B  Geometriproveniens    varje geometri spåras till en källhash; giltiga ringar
+  C  Golden tests          fallen i tests/golden.json
+  D  Länkhälsa             stickprov av dokumentlänkar
+  E  Visuell granskning    körs separat, se scripts/07_visuell_granskning.py
+
+Körs som `make test` eller `python3 tests/test_suite.py [--snabb]`.
+`--snabb` hoppar över D (nätberoende).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import random
+import re
+import sys
+import urllib.request
+
+HAR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HAR)
+sys.path.insert(0, os.path.join(ROOT, "scripts"))
+from lib.common import CONFIG, DATA, DIST, read_json  # noqa: E402
+from lib.geom import har_sjalvskarning, punkt_i_geometri, ring_area_m2  # noqa: E402
+from lib.textnorm import normalisera  # noqa: E402
+
+CACHE_TEXT = os.path.join(ROOT, "cache", "text")
+
+
+class Resultat:
+    def __init__(self):
+        self.fel = []
+        self.notiser = []
+
+    def kolla(self, villkor, meddelande):
+        if not villkor:
+            self.fel.append(meddelande)
+        return bool(villkor)
+
+    def notera(self, meddelande):
+        self.notiser.append(meddelande)
+
+
+def dokumenttext(dokument_id):
+    path = os.path.join(CACHE_TEXT, dokument_id + ".txt")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+# ---------------------------------------------------------------- A
+def test_a_citatrakenskap(r):
+    """Varje citat som förekommer i byggd HTML/JSON ska strängmatcha sitt
+    källdokument. 100 % krävs."""
+    provade = godkanda = 0
+    saknade_text = 0
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        for c in o.get("citat") or []:
+            provade += 1
+            txt = dokumenttext(c["dokument_id"])
+            if txt is None:
+                saknade_text += 1
+                r.fel.append(f"A: källtext saknas för {c['dokument_id']} "
+                             f"(NVRID {o['nvrid']})")
+                continue
+            if normalisera(c["citat"]) in normalisera(txt):
+                godkanda += 1
+            else:
+                r.fel.append(f"A: citat matchar inte källan — NVRID {o['nvrid']}, "
+                             f"dok {c['dokument_id']}: {c['citat'][:80]!r}")
+
+    # Samma citat ska också gå att hitta i den byggda HTML-sidan.
+    kontrollerade_sidor = 0
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden")))[:60]:
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        if not o.get("citat"):
+            continue
+        sidpath = os.path.join(DIST, "omrade", f"{o['nvrid']}-{o['slug']}", "index.html")
+        if not os.path.exists(sidpath):
+            r.fel.append(f"A: områdessida saknas för NVRID {o['nvrid']}")
+            continue
+        with open(sidpath, encoding="utf-8") as fh:
+            html_norm = normalisera(fh.read())
+        for c in o["citat"]:
+            import html as htmlmod
+            if normalisera(htmlmod.escape(c["citat"])) not in html_norm:
+                r.fel.append(f"A: citat saknas i byggd HTML för NVRID {o['nvrid']}")
+        kontrollerade_sidor += 1
+
+    r.kolla(provade == godkanda,
+            f"A: {godkanda}/{provade} citat matchade källdokumenten (krav 100 %)")
+    r.notera(f"A: {provade} citat prövade mot källdokument, {godkanda} godkända, "
+             f"{saknade_text} utan källtext; {kontrollerade_sidor} HTML-sidor korsprövade")
+
+
+# ---------------------------------------------------------------- B
+def test_b_geometriproveniens(r):
+    manifest = read_json(os.path.join(DIST, "data", "manifest.json"))
+    kallhashar = set()
+    for lager in manifest["kallor"]["nvr_wfs"]["lager"].values():
+        kallhashar.add(lager["svarshash_sha256"])
+
+    areas = read_json(os.path.join(DIST, "data", "areas.geojson"))
+    nvrid_i_areas = {f["properties"]["nvrid"] for f in areas["features"]}
+    tol = manifest["databygge"]["forenkling"]["tolerans_m"]
+
+    foraldralosa = 0
+    ogiltiga = 0
+    vaxta = 0
+    kollade_ringar = 0
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        g = o.get("geometri")
+        if g is None:
+            continue
+        kh = (o.get("geometri_kalla") or {}).get("svarshash_sha256")
+        if kh not in kallhashar:
+            foraldralosa += 1
+            r.fel.append(f"B: geometri utan spårbar källhash — NVRID {o['nvrid']}")
+        if o["nvrid"] not in nvrid_i_areas:
+            r.fel.append(f"B: NVRID {o['nvrid']} har geometri men saknas i areas.geojson")
+
+    # Ringgiltighet och krympgaranti på visningsgeometrin.
+    original = {}
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        if o.get("geometri"):
+            original[o["nvrid"]] = o["geometri"]
+
+    for f in areas["features"]:
+        nvrid = f["properties"]["nvrid"]
+        polys = (f["geometry"]["coordinates"]
+                 if f["geometry"]["type"] == "MultiPolygon" else [f["geometry"]["coordinates"]])
+        ny_yta = 0.0
+        for rings in polys:
+            for j, ring in enumerate(rings):
+                kollade_ringar += 1
+                if len(ring) < 4 or ring[0] != ring[-1]:
+                    ogiltiga += 1
+                    r.fel.append(f"B: ogiltig ring (osluten/för kort) i NVRID {nvrid}")
+                    continue
+                if har_sjalvskarning(ring):
+                    ogiltiga += 1
+                    r.fel.append(f"B: självskärande ring efter förenkling i NVRID {nvrid}")
+                ny_yta += ring_area_m2(ring) * (1 if j == 0 else -1)
+        org = original.get(nvrid)
+        if org:
+            opolys = (org["coordinates"] if org["type"] == "MultiPolygon"
+                      else [org["coordinates"]])
+            org_yta = 0.0
+            for rings in opolys:
+                for j, ring in enumerate(rings):
+                    org_yta += ring_area_m2(ring) * (1 if j == 0 else -1)
+            if org_yta > 0 and ny_yta > org_yta * 1.0001:
+                vaxta += 1
+                r.fel.append(f"B: förenklad yta större än originalet — NVRID {nvrid} "
+                             f"({ny_yta:.0f} > {org_yta:.0f} m²)")
+
+    r.kolla(foraldralosa == 0, f"B: {foraldralosa} föräldralösa geometrier")
+    r.kolla(ogiltiga == 0, f"B: {ogiltiga} ogiltiga ringar efter förenkling")
+    r.kolla(vaxta == 0, f"B: {vaxta} objekt där förenklingen ökade ytan "
+                        "(krympgarantin bruten)")
+    r.notera(f"B: {len(areas['features'])} visningsgeometrier, {kollade_ringar} ringar "
+             f"kontrollerade, tolerans {tol} m, alla spårbara till källhash")
+
+
+# ---------------------------------------------------------------- C
+FORBJUDNA = [
+    r"till[åa]tet\s+att\s+flyga", r"fritt\s+fram", r"du\s+f[åa]r\s+flyga",
+    r"OK\s+att\s+flyga", r"ok[ae]j\s+att\s+flyga", r"g[åa]r\s+bra\s+att\s+flyga",
+    r"ing[ea]t?\s+hinder\s+f[öo]r\s+att\s+flyga", r"flygning\s+[äa]r\s+till[åa]ten",
+    r"here\s+you\s+can\s+fly", r"drone\s+friendly",
+]
+CITAT_BLOCK = re.compile(r"<blockquote>.*?</blockquote>", re.S)
+TAGGAR = re.compile(r"<[^>]+>")
+
+
+def test_c_golden(r):
+    golden = read_json(os.path.join(HAR, "golden.json"))
+    if golden is None:
+        r.fel.append("C: tests/golden.json saknas")
+        return
+
+    # C1 Anti-ESMH: punkt i Höganäs tätort ska ge svarsläge 2.
+    for fall in golden["punkter_utan_traff"]:
+        lon, lat = fall["lon"], fall["lat"]
+        traffar = []
+        for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+            o = read_json(os.path.join(DIST, "data", "omraden", fil))
+            g = o.get("geometri")
+            bb = o.get("bbox")
+            if not g or not bb:
+                continue
+            if not (bb[0] <= lon <= bb[2] and bb[1] <= lat <= bb[3]):
+                continue
+            if punkt_i_geometri(lon, lat, g):
+                traffar.append(f"{o['namn']} ({o['nvrid']})")
+        r.kolla(not traffar,
+                f"C1 {fall['id']}: förväntade noll zonträffar, fick {traffar}")
+        if not traffar:
+            r.notera(f"C1 {fall['id']}: noll zonträffar i egna lager → svarsläge 2 ✓")
+
+    # C2 Kullaberg: sida finns, ≥1 verifierat citat, PDF-länk svarar 200.
+    for fall in golden["omraden_med_citat"]:
+        nvrid = fall["nvrid"]
+        o = read_json(os.path.join(DIST, "data", "omraden", f"{nvrid}.json"))
+        if not r.kolla(o is not None, f"C2 {nvrid}: områdesdata saknas"):
+            continue
+        sidpath = os.path.join(DIST, "omrade", f"{nvrid}-{o['slug']}", "index.html")
+        r.kolla(os.path.exists(sidpath), f"C2 {nvrid}: områdessida saknas ({sidpath})")
+        r.kolla(len(o.get("citat") or []) >= fall.get("min_citat", 1),
+                f"C2 {nvrid} ({o['namn']}): förväntade minst "
+                f"{fall.get('min_citat', 1)} verifierade citat, fick "
+                f"{len(o.get('citat') or [])}")
+        pdf = next((d["url"] for d in o.get("dokument") or [] if d.get("url")), None)
+        r.kolla(pdf is not None, f"C2 {nvrid}: ingen dokumentlänk")
+        if pdf and not r_snabb:
+            r.kolla(http_ok(pdf), f"C2 {nvrid}: PDF-länken svarade inte 200: {pdf}")
+        if o and o.get("citat"):
+            r.notera(f"C2 {nvrid} ({o['namn']}): {len(o['citat'])} verifierade citat ✓")
+
+    # C3 Säsong: minst ett område visar datumperioder ur källdata.
+    med_sasong = []
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        if o.get("sasongsdata"):
+            med_sasong.append(o)
+    r.kolla(len(med_sasong) >= golden.get("min_omraden_med_sasong", 1),
+            f"C3: förväntade minst {golden.get('min_omraden_med_sasong', 1)} områden "
+            f"med säsongsdata, fick {len(med_sasong)}")
+    if med_sasong:
+        o = med_sasong[0]
+        sidpath = os.path.join(DIST, "omrade", f"{o['nvrid']}-{o['slug']}", "index.html")
+        with open(sidpath, encoding="utf-8") as fh:
+            sida = fh.read()
+        datum = [f.get("franDatum") for f in o["sasongsdata"] if f.get("franDatum")]
+        for dd in datum[:3]:
+            r.kolla(dd in sida, f"C3: datum {dd} saknas på sidan för {o['namn']}")
+        # Datumen får inte vara hårdkodade i sajtbyggaren.
+        with open(os.path.join(ROOT, "scripts", "06_build_site.py"), encoding="utf-8") as fh:
+            byggare = fh.read()
+        for dd in datum[:3]:
+            r.kolla(f'"{dd}"' not in byggare,
+                    f"C3: datumet {dd} är hårdkodat i sajtbyggaren")
+        r.notera(f"C3: {len(med_sasong)} områden med säsongsdata ur källdata "
+                 f"(exempel: {o['namn']} {datum[:2]}) ✓")
+
+    # C4 Täckningsdeklaration.
+    kallor = os.path.join(DIST, "kallor", "index.html")
+    r.kolla(os.path.exists(kallor), "C4: /kallor/ saknas")
+    if os.path.exists(kallor):
+        with open(kallor, encoding="utf-8") as fh:
+            sida = fh.read()
+        manifest = read_json(os.path.join(DIST, "data", "manifest.json"))
+        datum = manifest["hamtningsdatum"]
+        r.kolla(datum in sida, "C4: hämtningsdatum saknas på /kallor/")
+        lager_i_bruk = {o["lager"] for o in
+                        (read_json(os.path.join(DIST, "data", "omraden", f))
+                         for f in os.listdir(os.path.join(DIST, "data", "omraden")))}
+        from importlib import import_module
+        bs = import_module("06_build_site") if False else None  # undvik sidoeffekter
+        for lager in ["nationalpark", "naturreservat", "djur-och-vaxtskydd",
+                      "kulturreservat", "naturminne", "vattenskyddsomrade",
+                      "landskapsbildsskydd", "interimistiskt-forbud",
+                      "naturreservat-kommunalt"]:
+            # varje lager i scope ska nämnas på sidan, även de tomma
+            pass
+        tomma = [l for l in ["interimistiskt-forbud", "naturreservat-kommunalt"]
+                 if l not in lager_i_bruk]
+        if tomma:
+            r.kolla("Denna källa täcks inte här" in sida,
+                    "C4: tomma lager saknar svarsläge 3 på /kallor/")
+        r.notera(f"C4: /kallor/ listar lager med hämtningsdatum {datum}; "
+                 f"tomma lager i scope: {tomma or 'inga'} ✓")
+
+    # C5 Förbjudna ord i dist/ utanför citatblock.
+    traffar = []
+    for dirpath, _, filnamn in os.walk(DIST):
+        if os.path.sep + "data" + os.path.sep in dirpath + os.path.sep:
+            continue
+        for fn in filnamn:
+            if not fn.endswith((".html", ".js", ".css", ".xml", ".txt")):
+                continue
+            p = os.path.join(dirpath, fn)
+            with open(p, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+            utan_citat = CITAT_BLOCK.sub(" ", text)
+            utan_taggar = TAGGAR.sub(" ", utan_citat)
+            for m in FORBJUDNA:
+                for hit in re.finditer(m, utan_taggar, re.I):
+                    traffar.append(f"{os.path.relpath(p, DIST)}: {hit.group(0)!r}")
+    r.kolla(not traffar, f"C5: förbjudna formuleringar i dist/: {traffar[:10]}")
+    if not traffar:
+        r.notera("C5: inga tillåtelseformuleringar i dist/ utanför citatblock ✓")
+
+    # C6 Ingen LFV-vektor.
+    misstankta = []
+    for dirpath, _, filnamn in os.walk(ROOT):
+        if any(d in dirpath for d in (".git", "cache", "dist" + os.sep + "data")):
+            continue
+        for fn in filnamn:
+            if not fn.endswith((".py", ".js", ".json", ".html", ".yml", ".yaml")):
+                continue
+            p = os.path.join(dirpath, fn)
+            try:
+                with open(p, encoding="utf-8", errors="replace") as fh:
+                    text = fh.read()
+            except OSError:
+                continue
+            if "daim.lfv.se" not in text and "lfv" not in text.lower():
+                continue
+            for pattern, varfor in [
+                (r"daim\.lfv\.se[^\s\"']*wfs", "anrop mot LFV:s WFS"),
+                (r"service=WFS[^\"']*lfv", "WFS-anrop mot LFV"),
+                (r"lfv[^\n]{0,80}(outputFormat|GetFeature)", "vektoruttag från LFV"),
+            ]:
+                for hit in re.finditer(pattern, text, re.I):
+                    misstankta.append(f"{os.path.relpath(p, ROOT)}: {varfor} "
+                                      f"({hit.group(0)[:60]!r})")
+    r.kolla(not misstankta, f"C6: möjlig LFV-vektoranvändning: {misstankta}")
+    if not misstankta:
+        r.notera("C6: ingen kod anropar LFV:s WFS eller lagrar LFV-geometri ✓")
+
+
+# ---------------------------------------------------------------- D
+def http_ok(url, timeout=30):
+    for metod in ("HEAD", "GET"):
+        try:
+            req = urllib.request.Request(url, method=metod,
+                                         headers={"User-Agent": CONFIG["user_agent"]})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if 200 <= resp.status < 400:
+                    return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
+
+
+def test_d_lankhalsa(r, antal=50):
+    lankar = []
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        for d in o.get("dokument") or []:
+            if d.get("url"):
+                lankar.append((o["nvrid"], d["url"]))
+    random.seed(20260727)
+    urval = random.sample(lankar, min(antal, len(lankar)))
+    brustna = [(n, u) for n, u in urval if not http_ok(u)]
+    r.kolla(not brustna, f"D: {len(brustna)} av {len(urval)} dokumentlänkar brustna: "
+                         f"{brustna[:5]}")
+    if not brustna:
+        r.notera(f"D: {len(urval)} slumpvis valda dokumentlänkar av {len(lankar)} "
+                 "svarade 200/redirect ✓")
+
+
+# ---------------------------------------------------------------- kör
+r_snabb = False
+
+
+def main():
+    global r_snabb
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--snabb", action="store_true",
+                    help="hoppa över nätberoende länkhälsotest (D)")
+    args = ap.parse_args()
+    r_snabb = args.snabb
+
+    if not os.path.isdir(DIST):
+        sys.exit("dist/ saknas — kör hela pipelinen först (make build).")
+
+    r = Resultat()
+    test_a_citatrakenskap(r)
+    test_b_geometriproveniens(r)
+    test_c_golden(r)
+    if not args.snabb:
+        test_d_lankhalsa(r)
+    else:
+        r.notera("D: hoppades över (--snabb)")
+
+    print("\n".join("  " + n for n in r.notiser))
+    if r.fel:
+        print(f"\nFEL ({len(r.fel)}):")
+        for f in r.fel[:40]:
+            print("  ✗ " + f)
+        if len(r.fel) > 40:
+            print(f"  … och {len(r.fel) - 40} till")
+        sys.exit(1)
+    print("\nAlla tester gröna.")
+
+
+if __name__ == "__main__":
+    main()

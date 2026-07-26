@@ -1,0 +1,20 @@
+{
+  "site_name": "Drönarkoll Skåne",
+  "site_tagline": "Vad säger föreskrifterna i skyddad natur?",
+  "base_url": "https://EXEMPEL.se",
+  "_base_url_TODO": "Placeholder från Fas 0. Byt till den skarpa domänen — detta är den ENDA plats som behöver ändras för canonical-URL:er, sitemap och OG-metadata.",
+  "repo_url": "https://github.com/danielnymberg/dronarregler-skane",
+  "issue_url": "https://github.com/danielnymberg/dronarregler-skane/issues/new",
+  "contact_mode": "github_issues",
+  "lan": "Skåne Län",
+  "lan_kort": "Skåne",
+  "user_agent": "dronarregler-skane-bot/0.1 (+https://github.com/danielnymberg/dronarregler-skane)",
+  "throttle_docs_s": 1.0,
+  "throttle_api_s": 0.5,
+  "simplify_tolerance_m": 15,
+  "lfv_wms": {
+    "url": "https://daim.lfv.se/geoserver/wms",
+    "attribution": "© LFV (CC BY-NC-ND 4.0)",
+    "dronechart": "https://dronechart.lfv.se/"
+  }
+}

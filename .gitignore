@@ -1,0 +1,15 @@
+# Nedladdade källdokument och extraherad text. Regenereras av `make docs`,
+# flera GB, och ska inte ligga i repot — proveniensen finns i data/manifest.json
+# via SHA-256 per dokument.
+cache/
+
+# Rullbackskopia som Makefile skapar under bygget.
+.dist-backup/
+
+# Skärmdumpar från visuell granskning behålls (de är en del av VERIFIKATION.md),
+# men tillfälliga filer runt dem gör det inte.
+verification/tmp/
+
+.DS_Store
+__pycache__/
+*.pyc

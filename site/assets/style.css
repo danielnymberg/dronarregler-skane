@@ -1,0 +1,166 @@
+:root {
+  --bg: #ffffff;
+  --bg-mjuk: #f4f6f8;
+  --text: #16202b;
+  --text-svag: #4d5b6b;
+  --linje: #d4dbe3;
+  --lank: #0b4f8a;
+  --reglerat-bg: #fdf3e3;
+  --reglerat-kant: #b06d00;
+  --ingen-bg: #eef3f7;
+  --ingen-kant: #4a6a86;
+  --tacks-ej-bg: #f2eef7;
+  --tacks-ej-kant: #6b5a8a;
+  --ocr-bg: #fff8e1;
+  --ocr-kant: #a07800;
+  --fokus: #0b4f8a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161c;
+    --bg-mjuk: #1a222b;
+    --text: #eef3f8;
+    --text-svag: #a9b8c6;
+    --linje: #2e3a47;
+    --lank: #7cc0ff;
+    --reglerat-bg: #33270f;
+    --reglerat-kant: #d9a23d;
+    --ingen-bg: #1b2530;
+    --ingen-kant: #7fa3c2;
+    --tacks-ej-bg: #241f30;
+    --tacks-ej-kant: #a894d0;
+    --ocr-bg: #2c2410;
+    --ocr-kant: #d9b84d;
+    --fokus: #7cc0ff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+        Arial, sans-serif;
+}
+
+a { color: var(--lank); }
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.wrap { max-width: 46rem; margin: 0 auto; padding: 0 1rem; }
+.wrap-bred { max-width: 78rem; margin: 0 auto; padding: 0 1rem; }
+
+header.topp {
+  border-bottom: 1px solid var(--linje);
+  background: var(--bg-mjuk);
+}
+header.topp .rad {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1rem;
+  padding: 0.7rem 0;
+}
+header.topp .logotyp {
+  font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--text);
+}
+header.topp nav { margin-left: auto; display: flex; gap: 1rem; flex-wrap: wrap; }
+header.topp nav a { font-size: 0.95rem; }
+.tagline { color: var(--text-svag); font-size: 0.95rem; width: 100%; }
+
+h1 { font-size: 1.75rem; line-height: 1.25; margin: 1.4rem 0 0.5rem; }
+h2 { font-size: 1.25rem; margin: 2rem 0 0.6rem; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 0.4rem; }
+
+.meta { color: var(--text-svag); font-size: 0.95rem; margin: 0.2rem 0 1rem; }
+
+/* ---- svarslägen (Regel R2) ---- */
+.svar {
+  border-left: 6px solid; border-radius: 4px;
+  padding: 0.9rem 1rem; margin: 1rem 0;
+}
+.svar h2, .svar h3 { margin-top: 0; }
+.svar-reglerat { background: var(--reglerat-bg); border-color: var(--reglerat-kant); }
+.svar-ingen    { background: var(--ingen-bg);    border-color: var(--ingen-kant); }
+.svar-tacks-ej { background: var(--tacks-ej-bg); border-color: var(--tacks-ej-kant); }
+.svar-rubrik { font-weight: 700; font-size: 1.05rem; display: block; margin-bottom: 0.3rem; }
+
+.ocr-varning {
+  background: var(--ocr-bg); border: 1px solid var(--ocr-kant);
+  border-radius: 4px; padding: 0.6rem 0.8rem; margin: 0.8rem 0; font-size: 0.95rem;
+}
+
+/* ---- citat ---- */
+.citat {
+  margin: 0.9rem 0; padding: 0.7rem 0.9rem;
+  border-left: 4px solid var(--linje); background: var(--bg-mjuk);
+}
+.citat blockquote {
+  margin: 0; font-family: Georgia, "Times New Roman", serif;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.citat .kalla { font-size: 0.88rem; color: var(--text-svag); margin-top: 0.5rem; }
+.chip {
+  display: inline-block; font-size: 0.78rem; letter-spacing: 0.02em;
+  border: 1px solid var(--linje); border-radius: 999px;
+  padding: 0.1rem 0.6rem; margin-right: 0.4rem; color: var(--text-svag);
+}
+
+.ansvar {
+  border: 1px solid var(--linje); border-radius: 4px;
+  padding: 0.8rem 1rem; margin: 1.5rem 0; font-size: 0.94rem;
+  color: var(--text-svag); background: var(--bg-mjuk);
+}
+
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--linje); vertical-align: top; }
+th { font-weight: 600; }
+.tabell-scroll { overflow-x: auto; }
+
+/* ---- karta ---- */
+#karta { height: 68vh; min-height: 24rem; width: 100%; background: var(--bg-mjuk); }
+#minikarta { height: 15rem; width: 100%; background: var(--bg-mjuk); border: 1px solid var(--linje); }
+.kartverktyg {
+  display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;
+  padding: 0.7rem 0; border-bottom: 1px solid var(--linje);
+}
+button.knapp {
+  font: inherit; font-size: 0.95rem; cursor: pointer;
+  background: var(--lank); color: #fff; border: 1px solid var(--lank);
+  border-radius: 4px; padding: 0.45rem 0.9rem;
+}
+button.knapp.sekundar { background: transparent; color: var(--lank); }
+button.knapp[disabled] { opacity: 0.55; cursor: default; }
+label.toggle { font-size: 0.95rem; display: inline-flex; gap: 0.35rem; align-items: center; }
+
+#positionssvar:empty { display: none; }
+.laddstatus { color: var(--text-svag); font-size: 0.9rem; }
+
+.lista-omraden { list-style: none; padding: 0; margin: 0.5rem 0; }
+.lista-omraden li { padding: 0.3rem 0; border-bottom: 1px solid var(--linje); }
+.avstand { color: var(--text-svag); font-size: 0.9rem; }
+
+footer.botten {
+  margin-top: 3rem; border-top: 1px solid var(--linje);
+  background: var(--bg-mjuk); padding: 1.2rem 0; font-size: 0.9rem;
+  color: var(--text-svag);
+}
+footer.botten a { color: var(--lank); }
+
+.dataalder {
+  background: var(--bg-mjuk); border-bottom: 1px solid var(--linje);
+  font-size: 0.88rem; color: var(--text-svag); padding: 0.35rem 0;
+}
+
+.leaflet-container { font: inherit; }
+.leaflet-control-attribution { font-size: 11px; }
+
+@media (max-width: 34rem) {
+  body { font-size: 16px; }
+  #karta { height: 60vh; }
+  header.topp nav { margin-left: 0; width: 100%; }
+}

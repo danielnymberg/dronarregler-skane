@@ -1,0 +1,31 @@
+{
+  "_om": "Golden tests. Varje bugg som hittas blir ett nytt fall här INNAN den rättas.",
+
+  "punkter_utan_traff": [
+    {
+      "id": "anti-esmh-hoganas-tatort",
+      "lon": 12.556,
+      "lat": 56.2,
+      "varfor": "Höganäs tätort. Punkten är verifierad mot rådata från Naturvårdsverkets WFS: ingen skyddsyta täcker den, och närmaste skyddade område (naturreservatet Ärtan och Bönan) ligger 940 m bort. Testet finns eftersom en befintlig hobbytjänst larmar FLYGFÖRBUD på exakt den här platsen genom att rita en egen 5 km-cirkel kring Höganäs flygfält (ESMH), ett klubbfält utan flygtrafikledning. Tjänsten får aldrig producera ett larm som inte kommer ur en myndighetsgeometri.",
+      "forvantat_svarslage": "Ingen restriktion hittad i de källor tjänsten täcker"
+    }
+  ],
+
+  "omraden_med_citat": [
+    {
+      "nvrid": "2000972",
+      "namn": "Västra Kullaberg",
+      "min_citat": 1,
+      "varfor": "Kullaberg enligt uppdragets golden test 2: områdessidan ska finnas, innehålla minst ett verifierat ordagrant citat, och dokumentlänken ska svara HTTP 200."
+    },
+    {
+      "nvrid": "2000975",
+      "namn": "Östra Kullaberg",
+      "min_citat": 1,
+      "varfor": "Andra halvan av Kullaberg — samma krav."
+    }
+  ],
+
+  "min_omraden_med_sasong": 1,
+  "_sasong_om": "Minst ett djur- och växtskyddsområde eller tillträdesförbud i Skåne ska visa sina datumperioder hämtade ur källdata (foreskriftsOmraden.franDatum/tillDatum), inte hårdkodade. Testet kontrollerar både att datumen står på sidan och att de INTE förekommer som strängliteraler i sajtbyggaren."
+}
