@@ -130,7 +130,7 @@ ordning. Substansen är citatet.
 ## Statistik vid detta bygge
 
 - Objekt med minst ett verifierat citat: 335
-- Objekt i länk-läge: 305
+- Objekt i länk-läge: 304
 - Objekt med OCR-tolkad text: 300
 - Objekt med säsongsdata: 49
 - Objekt utan geometri: 0

@@ -274,6 +274,15 @@ def omradessida(o, manifest):
         d.append(rendera_citatgrupper(citat))
         if len({(c["dokument_namn"], c["dokument_url"]) for c in citat}) > 1:
             d.append(f'<p class="avstand">{FLERA_BESLUT}</p>')
+    elif o.get("svarslage") == "beslut-ej-last":
+        # Tjänsten har inte läst dokumentet ännu och kan därför inte säga något
+        # om vad det innehåller. Den säger det, i stället för att låta tystnad
+        # se ut som ett besked.
+        d.append('<div class="svar svar-tacks-ej"><strong>Beslutet har ännu inte '
+                 "lästs av tjänsten</strong><p>Området finns i registret och "
+                 "beslutsdokumenten är länkade nedan, men tjänsten har ännu inte "
+                 "hämtat och läst dem. Att inga citat visas betyder alltså "
+                 "ingenting om vad beslutet säger — läs det.</p></div>")
     else:
         d.append('<div class="svar svar-reglerat"><strong>Reglerat område — läs '
                  "beslutet</strong><p>Ingen föreskrift som uttryckligen nämner "
@@ -516,6 +525,9 @@ def kallsida(manifest, rapport, omraden):
         ("Objekt med minst ett verifierat citat", s["objekt_med_verifierade_citat"]),
         ("Objekt i länk-läge (inget citat höll eller inget hittades)",
          s["objekt_i_lanklage"] + s["objekt_utan_traffar"]),
+        ("Objekt vars beslut ännu inte lästs av tjänsten",
+         (manifest.get("databygge", {}).get("statistik", {})
+          .get("beslut_ej_last", 0))),
         ("Objekt med OCR-tolkad text", s["objekt_med_ocr"]),
         ("Citat prövade", s["citat_prövade"]),
         ("Citat godkända", s["citat_godkanda"]),
@@ -552,39 +564,57 @@ def kallsida(manifest, rapport, omraden):
 
 def omsida(manifest, rapport):
     datum = manifest["hamtningsdatum"]
-    d = ["<h1>Om tjänsten</h1>"]
-    d.append("<p>Tjänsten är en vägvisare till källor. Den pekar och citerar — "
-             "den bedömer inte, sammanfattar inte och ger inga klartecken.</p>")
-    d.append("<h2>Tre svarslägen, aldrig ett fjärde</h2><ol>"
-             "<li><strong>Reglerat område — läs beslutet.</strong> Med ordagranna "
-             "citat och länk till originalbeslutet.</li>"
-             "<li><strong>Ingen restriktion hittad i de källor tjänsten täcker.</strong> "
-             "Ett besked om vad databasen innehåller, inte om din flygning.</li>"
-             "<li><strong>Denna källa täcks inte här.</strong> Per rättskälla, "
-             "till exempel luftrummet.</li></ol>")
-    d.append("<h2>Så tas citaten fram</h2><ol>"
-             "<li>Områdena hämtas ur Naturvårdsverkets naturvårdsregister via öppet "
-             "WFS-API. Geometrin används exakt som myndigheten levererat den.</li>"
-             "<li>Beslutsdokumenten laddas ned från Naturvårdsverkets dokumentarkiv. "
-             "Text extraheras med pdftotext, och inskannade original OCR-tolkas med "
-             "tesseract på svenska.</li>"
-             "<li>Föreskriftspunkter som kan beröra flygning skärs ut som "
-             "sammanhängande delsträngar ur dokumentets text. Ingen text skrivs om "
-             "eller sätts ihop från flera ställen.</li>"
-             "<li>Ett fristående kontrollskript strängmatchar varje citat mot "
-             "källdokumentets text. Håller citatet inte måttet kastas det, och "
-             "området visas i länk-läge.</li></ol>")
-    d.append("<h2>Vad tjänsten aldrig gör</h2><ul>"
-             "<li>Ritar aldrig egna zoner, buffertar eller cirklar kring något.</li>"
-             "<li>Skriver aldrig om en föreskrift med egna ord.</li>"
-             "<li>Ger aldrig ett samlat omdöme om huruvida en flygning är i sin "
-             "ordning.</li>"
-             "<li>Spårar aldrig besökare och visar aldrig reklam.</li></ul>")
-    d.append("<h2>Hitta fel?</h2>")
-    d.append(f'<p>Rapportera gärna: <a href="{E(CONFIG["issue_url"])}" rel="noopener">'
-             "öppna ett ärende i tjänstens öppna kodförråd</a>. Varje bekräftat fel "
-             "blir ett regressionstest innan det rättas.</p>")
-    d.append(f'<div class="ansvar">{ANSVARSTEXT}</div>')
+    st = rapport["statistik"]
+    d = [f"<h1>Om {E(NAMN)}</h1>",
+         "<p>Tjänsten visar var det finns skyddade naturområden vars "
+         "myndighetsbeslut kan innehålla föreskrifter som berör drönarflygning, "
+         "och citerar föreskrifterna <strong>ordagrant</strong> ur besluten. "
+         "Den tolkar dem inte och ger inga klartecken. Gratis, reklamfri, "
+         "utan spårning.</p>",
+
+         "<h2>Tre svar, aldrig ett fjärde</h2><ol>"
+         "<li><strong>Reglerat område — läs beslutet.</strong> Med ordagranna "
+         "citat och länk till originalbeslutet.</li>"
+         "<li><strong>Ingen restriktion hittad i de källor tjänsten täcker.</strong> "
+         "Ett besked om vad databasen innehåller, inte om din flygning.</li>"
+         "<li><strong>Denna källa täcks inte här.</strong> Per rättskälla — "
+         "framför allt luftrummet, som tjänsten inte har i sin databas.</li>"
+         "</ol>",
+
+         "<h2>Så tas citaten fram</h2><ol>"
+         "<li>Områdena hämtas ur Naturvårdsverkets naturvårdsregister via öppet "
+         "API. Geometrin används precis som myndigheten levererat den.</li>"
+         "<li>Beslutsdokumenten laddas ned från Naturvårdsverkets dokumentarkiv. "
+         "Inskannade original OCR-tolkas på svenska.</li>"
+         "<li>Föreskriftspunkter som kan beröra flygning skärs ut som "
+         "sammanhängande delsträngar ur dokumentets text. Ingen text skrivs om "
+         "eller sätts ihop från flera ställen.</li>"
+         "<li>Ett fristående kontrollskript strängmatchar varje citat mot "
+         "källdokumentet. Håller citatet inte måttet kastas det, och området "
+         "visas med enbart länken.</li></ol>",
+
+         "<h2>Vad tjänsten aldrig gör</h2><ul>"
+         "<li>Ritar egna zoner, buffertar eller cirklar kring något.</li>"
+         "<li>Skriver om en föreskrift med egna ord.</li>"
+         "<li>Ger ett samlat omdöme om huruvida en flygning är i sin ordning.</li>"
+         "<li>Spårar besökare eller visar reklam.</li></ul>",
+
+         "<h2>Siffror vid senaste bygget</h2>"
+         '<div class="tabell-scroll"><table><tbody>'
+         f'<tr><th>Områden i databasen</th><td>{st["antal_objekt"]}</td></tr>'
+         f'<tr><th>Citat som visas</th><td>{st["citat_godkanda"]}</td></tr>'
+         f'<tr><th>Citat som klarade ordagrann kontroll</th>'
+         f'<td>{st["andel_citat_godkanda_procent"]} %</td></tr>'
+         f'<tr><th>Data hämtad</th><td>{E(datum)}</td></tr>'
+         "</tbody></table></div>"
+         '<p>Mer i <a href="/kallor/">källor och täckning</a>.</p>',
+
+         "<h2>Hitta fel?</h2>"
+         f'<p><a href="{E(CONFIG["issue_url"])}" rel="noopener">Öppna ett ärende '
+         "i tjänstens öppna kodförråd.</a> Varje bekräftat fel blir ett "
+         "regressionstest innan det rättas.</p>",
+
+         f'<p class="ansvar">{ANSVARSTEXT}</p>']
     return sidmall(titel=f"Om tjänsten — {NAMN}",
                    beskrivning=("Hur tjänsten hämtar, citerar och verifierar "
                                 "föreskrifter ur myndighetsbeslut — och vad den "

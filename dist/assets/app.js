@@ -297,7 +297,7 @@
           // skyddstyp, lager, svarsläge, minx, miny, maxx, maxy.
           visaSvar(lon, lat, traffar.map(function (r) {
             return { nvrid: r[0], slug: r[1], namn: r[2], skyddstyp: r[3],
-                     antalCitat: r[10] };
+                     svarslage: r[5], antalCitat: r[10] };
           }), res.rader, res.geometrier);
           status("");
         })
@@ -350,7 +350,9 @@
           return '<li><a href="/omrade/' + o.nvrid + "-" + o.slug + '/">' +
             esc(o.namn) + "</a> — " + esc(o.skyddstyp) +
             (o.antalCitat ? " · " + o.antalCitat + " citat ur beslutet"
-                          : " · läs beslutet") + "</li>";
+             : o.svarslage === "beslut-ej-last"
+               ? " · beslutet ännu inte läst av tjänsten"
+               : " · läs beslutet") + "</li>";
         }).join("");
         h += svarBlock("reglerat", "Reglerat område — läs beslutet",
           "<p>Du står i " + traffar.length +

@@ -407,8 +407,8 @@ def main():
                   "max_ytforlust_procent_per_objekt": MAX_YTFORLUST_PROCENT,
                   "objekt_per_anvand_tolerans": {},
                   "_matgrans_ha": 1.0}
-    stats = {"med_verifierade_citat": 0, "lanklage": 0, "utan_geometri": 0,
-             "med_ocr": 0, "med_sasongsdata": 0}
+    stats = {"med_verifierade_citat": 0, "lanklage": 0, "beslut_ej_last": 0,
+             "utan_geometri": 0, "med_ocr": 0, "med_sasongsdata": 0}
     # Riktningen betyder olika saker. Geometri MINDRE än registrerad areal är
     # farligt: delar av området saknas på kartan, och en position där får svaret
     # "ingen restriktion hittad". Geometri STÖRRE är i praktiken registrets egen
@@ -428,9 +428,17 @@ def main():
         sasong = [f for f in (rec.get("foreskriftsomraden") or [])
                   if f.get("franDatum") or f.get("tillDatum")]
 
+        # Ett område vars beslutsdokument ännu inte hämtats och lästs får INTE
+        # påstå att ingen luftfartsföreskrift finns — den utsagan är inte
+        # förtjänad förrän texten är läst. Det är inte ett fjärde svarsläge utan
+        # ett datatillstånd: sidan säger att beslutet inte lästs och länkar dit.
+        lasta = [d for d in dokument if d.get("sidor") is not None]
         if citat:
             svarslage = "reglerat-las-beslutet"
             stats["med_verifierade_citat"] += 1
+        elif dokument and not lasta:
+            svarslage = "beslut-ej-last"
+            stats["beslut_ej_last"] = stats.get("beslut_ej_last", 0) + 1
         else:
             svarslage = "lanklage"
             stats["lanklage"] += 1

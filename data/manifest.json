@@ -45814,7 +45814,8 @@
   },
   "statistik": {
    "med_verifierade_citat": 335,
-   "lanklage": 305,
+   "lanklage": 304,
+   "beslut_ej_last": 1,
    "utan_geometri": 0,
    "med_ocr": 300,
    "med_sasongsdata": 49
