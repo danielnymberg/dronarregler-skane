@@ -479,9 +479,22 @@ visning**. Orden och radbrytningarna är oförändrade, den lagrade strängen i
 `data/` är orörd, och verifieringens normalisering kollapsar ändå all
 whitespace — så ordagrannheten är opåverkad.
 
+### D-38 — Deployad till Cloudflare Pages 2026-07-27 på Daniels instruktion
+`https://dronarkoll-skane.pages.dev`. Token fanns redan som
+`CLOUDFLARE_API_TOKEN` i MMDN:s miljö — inga hemligheter passerade chatten.
+
+`base_url` sattes till pages.dev-domänen innan bygget, så canonical-URL:er,
+sitemap och OG-metadata pekar rätt. När en skarp domän bestäms är det
+fortfarande den enda variabel som behöver ändras.
+
+Direkt efter deploy svarade en del rutter 522 (kallstart vid edgen). Det satte
+sig av sig självt inom ett par minuter; samtliga rutter verifierades därefter
+som 200, och `_headers` slog igenom (`referrer-policy: no-referrer`,
+`permissions-policy: geolocation=(self), interest-cohort=()`,
+`x-content-type-options: nosniff`).
+
 ## Öppna punkter
 
-- `base_url` är fortfarande placeholdern `https://EXEMPEL.se`.
+- `base_url` pekar på pages.dev — byt när en skarp domän är bestämd.
 - Cron för månadsuppdateringen är avstängd.
-- Ingen deploy är utförd.
 - Bakgrundskartans tile-leverantör bör omprövas om trafiken växer (D-24).

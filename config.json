@@ -1,8 +1,8 @@
 {
   "site_name": "Drönarkoll Skåne",
   "site_tagline": "Vad säger föreskrifterna i skyddad natur?",
-  "base_url": "https://EXEMPEL.se",
-  "_base_url_TODO": "Placeholder från Fas 0. Byt till den skarpa domänen — detta är den ENDA plats som behöver ändras för canonical-URL:er, sitemap och OG-metadata.",
+  "base_url": "https://dronarkoll-skane.pages.dev",
+  "_base_url_TODO": "Satt till Cloudflare Pages standarddoman 2026-07-27. Byt till den skarpa domanen nar den ar bestamd - detta ar den ENDA plats som behover andras for canonical-URL:er, sitemap och OG-metadata. Kor sedan: make site && make test-snabb && wrangler pages deploy dist",
   "repo_url": "https://github.com/danielnymberg/dronarregler-skane",
   "issue_url": "https://github.com/danielnymberg/dronarregler-skane/issues/new",
   "contact_mode": "github_issues",
