@@ -493,6 +493,140 @@ som 200, och `_headers` slog igenom (`referrer-policy: no-referrer`,
 `permissions-policy: geolocation=(self), interest-cohort=()`,
 `x-content-type-options: nosniff`).
 
+---
+
+## Andra omgången: rikstäckning och kartapp (2026-07-28)
+
+Daniel gav tre invändningar: för många ord om vad tjänsten *inte* vet, enkla
+saker onödigt komplicerade, och två frågor — vad hindrar hela Sverige, och hur
+blir gränssnittet mer karta och mindre webbsida. Beslut: GUI och Sverige i en
+körning, hård textstädning.
+
+### D-39 — Mätning först, försvar sedan
+Invändningen om brasklappar kontrollerades i stället för att bemötas: på
+Kullabergssidan stod **523 ord citat mot 788 ord runtomkring**, kvot 1,5:1.
+Raden "maskinellt verifierad ordagrant mot källdokumentet" stod tio gånger,
+konfidenschipet tio gånger, och FLERA_BESLUT-texten två gånger på samma sida.
+Daniel hade rätt, och det mesta av överskottet var sådant jag lagt till på eget
+bevåg — inte sådant uppdraget krävde.
+
+Efter städning: **1,09:1**. Kvar är i praktiken bara ansvarstexten (§7, får inte
+kortas) och LFV-raden (§5 punkt 2), båda en gång per sida.
+
+### D-40 — Klassificering och konfidens bort från ytan, kvar i datan
+`klassificering` och `konfidens` var mina egna påhäng. De var korrekta men de
+var metadata, och på en sida med tio citat blev de tio upprepningar av något
+läsaren inte behöver. De finns kvar i `data/omraden/{nvrid}.json` för
+granskning. Substansen på sidan är citatet, dess sidnummer och länken.
+
+### D-41 — Listrubriken grupperas
+Föreskriftsinledningen renderades före varje punkt, vilket gav "Utöver
+föreskrifter och förbud i andra lagar och författningar är det förbjudet att:"
+fem gånger på samma skärm. Citaten grupperas nu på (dokument, inledning) och
+rubriken skrivs en gång per grupp — precis som i beslutet.
+
+### D-42 — Startsidan är en app, områdessidorna är dokument
+Två ytor som felaktigt såg likadana ut. Startsidan: kartan fyller skärmen, GPS
+begärs direkt vid laddning, svaret kommer som en panel över kartan, ingen
+brödtext. Områdessidorna förblir läsbara dokument — de är SEO-bärarna och ska
+gå att läsa utan JavaScript. Förklaringstexten flyttade till `/om/`.
+
+### D-43 — Rikstäckning krävde tre nivåers partitionering
+6 027 naturreservat i landet mot 393 i Skåne. Skyddstyp räcker inte, län räcker
+inte (Västra Götaland 546, Norrbotten 542 — båda över serverns tak på 500).
+Tredje nivån är rekursiv bisektion på beslutsdatum, som alltid terminerar och
+inte kräver något externt register.
+
+Två gränsfall dök upp i verkligheten:
+- **414 av 500 naturminnen har tomt LAN-fält** och fångas inte av något
+  länsfilter. Länsuppdelningen faller därför tillbaka på datumbisektion för hela
+  mängden när summan inte stämmer, i stället för att avbryta.
+- **124 fågelskyddsområden i Blekinge delar beslutsdatum 1985** — ett beslut som
+  bildade många små öar. Datum kan inte dela dem; cellen hämtas i ett stycke,
+  vilket ryms under serverns tak.
+
+### D-44 — GEOJSON-formatet är trasigt; ESRIGEOJSON används i stället
+Det allvarligaste fyndet i hela bygget. Naturvårdsverkets WFS levererar felaktig
+GeoJSON på två sätt:
+
+1. **Svaret kapas mitt i JSON-strukturen** för celler med stora geometrier,
+   deterministiskt, med en eller flera features borta.
+2. **Flerdelade områden plattas ihop till EN polygon** där de övriga delarna
+   hamnar som "hål". Naturreservatet Verkeån blev 374 ha i stället för
+   registrets egna 1 424 ha. En position i den bortplattade delen fick svaret
+   "ingen restriktion hittad" — fel åt exakt det farliga hållet.
+
+Samma uttag i `outputFormat=ESRIGEOJSON` kommer komplett och med separata
+ringar. Konverteringen ligger i `lib/geom.py`.
+
+**Ringarna klassas på inneslutning, inte på orientering.** Den vanliga
+ESRI-regeln (medurs = ytterring) håller inte i den här datan: i Verkeån har ett
+5,2 km² stort hål samma rotationsriktning som den 9,2 km² stora ytterringen. En
+orienteringsbaserad regel gjorde hålet till en egen yta och nästan fyrdubblade
+arealen. Regeln som används: en ring innanför ett jämnt antal andra ringar är
+ytterring, innanför ett udda antal är den ett hål.
+
+Konverteringen validerades mot Skånes tidigare data och mot registrets eget
+`AREA_HA`. Registret bekräftade den nya geometrin i samtliga stickprov.
+
+### D-45 — Arealavstämning mot AREA_HA som permanent test
+Felet i D-44 var osynligt för alla dåvarande tester. `AREA_HA` är en oberoende
+uppgift ur samma post och avslöjar det direkt. Kontrollen skiljer på riktning,
+för de betyder olika saker:
+
+- **Geometri mindre än registrerad areal** är farligt — delar av området saknas
+  och en position där får svaret "ingen restriktion hittad". Test B faller om
+  någon geometri täcker under halva registrerade arealen.
+- **Geometri större** är i praktiken registrets egen inkonsekvens. Naturreservatet
+  Norra Ljunghusen har `AREA_HA` 15,64 medan dess egen polygon är 186 ha, i både
+  GEOJSON- och ESRI-utskriften. Det går inte att rätta, men det redovisas.
+
+### D-46 — Rutnätsdata i två storlekar, och egna filer åt jättarna
+Rikstäckande geometri är 76 MB och går inte att skicka till en telefon.
+
+- `oversikt.json` — hela landet, 400 m tolerans, områden över 50 ha. Laddas
+  utzoomad. Hur många som utelämnas skrivs ut i kartan.
+- `rutor/` — 1°-rutor med visningsgeometri, laddas per kartfönster.
+- `geom/` + `bbox/` — 0,25°-rutor med **oförenklad** originalgeometri för
+  punkt-i-polygon.
+
+Storleksfördelningen är extremt skev: medianen är 1,9 kB medan **50 områden är
+över 100 kB och tillsammans 30 av 76 MB**. Läggs de i varje ruta de rör kopieras
+Vindelfjällen in i dussintals rutor — katalogen blev 386 MB med enskilda rutor
+på 5,7 MB. De stora får därför egna filer och refereras från rutan: 120 MB, och
+största ruta 692 kB.
+
+Geometrin för punkt-i-polygon förenklas **inte**. En förenkling som krymper ytan
+kan ge svaret "ingen restriktion hittad" åt någon som står strax innanför
+gränsen, och en som växer ytan går inte att kombinera med meningsfull
+komprimering — mätt: grow-garantin tog bort 94 av 228 492 punkter.
+
+### D-47 — Per-områdesfilerna serveras inte styckvis
+Cloudflare Pages tar 20 000 filer per utrullning. 10 772 HTML-sidor plus lika
+många JSON-filer spränger taket. Per-områdesfilerna finns kvar i kodförrådet
+som CC0-produkt men kopieras inte till `dist/`; kartan behöver dem inte, den
+läser geometri ur `geom/` och citat ur HTML-sidorna.
+
+### D-48 — Datatillståndet "beslutet ej läst"
+Ett område vars beslutsdokument ännu inte hämtats får inte påstå att ingen
+luftfartsföreskrift finns — den utsagan är inte förtjänad förrän texten är läst.
+Det är inte ett fjärde svarsläge utan ett datatillstånd: sidan säger att
+beslutet inte lästs och länkar dit. Det gör det möjligt att rulla ut
+rikstäckningen stegvis utan att tystnad ser ut som ett besked.
+
+### D-49 — Närhetslistan får inte bero på vad kartan råkar visa
+Den första versionen av kartappen räknade avstånd utifrån de utritade ytorna.
+Utzoomad fanns bara områden över 50 ha där, och svaret påstod att närmaste
+område låg 3,3 km bort när det i själva verket låg 940 m bort. Listan bygger nu
+på bbox-rutorna runt punkten — vad kartan visar och vad som finns är två skilda
+saker.
+
+### D-50 — Namnet
+Tjänsten heter "Drönarkoll" utan länstillägg sedan den täcker hela landet.
+Kodförrådet heter fortfarande `dronarregler-skane` och `base_url` pekar på
+`dronarkoll-skane.pages.dev` — båda kan bytas, men ett namnbyte på förrådet
+bryter länkar och gjordes inte utan Daniels besked.
+
 ## Öppna punkter
 
 - `base_url` pekar på pages.dev — byt när en skarp domän är bestämd.

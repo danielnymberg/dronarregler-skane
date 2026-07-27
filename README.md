@@ -1,9 +1,16 @@
-# Drönarkoll Skåne
+# Drönarkoll
 
-En gratis, reklamfri, statisk webbtjänst som för Skåne län visar var det finns
-skyddade naturområden vars myndighetsbeslut kan innehålla föreskrifter som berör
+En gratis, reklamfri, statisk webbtjänst som visar var det finns skyddade
+naturområden vars myndighetsbeslut kan innehålla föreskrifter som berör
 drönarflygning. Tjänsten **citerar föreskrifterna ordagrant** ur besluten och
 länkar till originaldokumentet och ansvarig myndighet.
+
+Omfattningen styrs av `lan_kort` i `config.json`: `null` ger hela landet
+(10 772 objekt), ett länsnamn ger ett enskilt län.
+
+Startsidan är en **kartapp** — kartan fyller skärmen, positionen hämtas direkt,
+svaret kommer som en panel över kartan. Områdessidorna är **dokumentsidor**,
+läsbara utan JavaScript, och är tjänstens SEO-bärare.
 
 Tjänsten är en **vägvisare till källor**. Den pekar och citerar. Den bedömer
 inte, tolkar inte, sammanfattar inte och ger inga klartecken. Den ersätter inte
@@ -37,9 +44,11 @@ make all        # steg 1–6 + testsvit; dist/ skrivs bara om testerna är grön
 make servera    # http://localhost:8787
 ```
 
-Första körningen laddar ned ~800 beslutsdokument (flera GB) med ≥1 s mellan
-anrop och OCR-tolkar de inskannade. Räkna med 30–60 minuter. Efterföljande
-körningar använder `cache/` och tar minuter.
+Första körningen mot hela landet hämtar 10 772 objekt och ~13 000
+beslutsdokument med ≥1 s mellan anrop, och OCR-tolkar de inskannade. Räkna med
+**ett drygt halvdygn**: ~1,5 h registeruttag, ~4 h nedladdning, ~11 h OCR.
+Ett enskilt län tar en timme. Efterföljande körningar använder `cache/` och tar
+minuter.
 
 ### Förutsättningar
 
@@ -59,11 +68,11 @@ Varje steg kan köras om enskilt.
 
 | Steg | Kommando | Gör |
 |------|----------|-----|
-| 1 | `make ingest` | Hämtar alla skyddade områden i Skåne ur Naturvårdsverkets NVR (WFS 2.0, CC0) samt detaljposter med dokumentlänkar och säsongsdata. Skriver `data/manifest.json` och rå-svaren till `cache/raw/`. |
+| 1 | `make ingest` | Hämtar alla skyddade områden inom vald omfattning ur Naturvårdsverkets NVR (WFS 2.0, CC0), partitionerat i tre nivåer med avstämning mot `resultType=hits` samt detaljposter med dokumentlänkar och säsongsdata. Skriver `data/manifest.json` och rå-svaren till `cache/raw/`. |
 | 2 | `make docs` | Laddar ned beslutsdokument throttlat, hashar dem, extraherar text med `pdftotext` och OCR-tolkar inskannade original med `tesseract -l swe` parallellt över alla kärnor. |
 | 3 | `make extract` | Skär ut föreskriftspunkter som kan beröra flygning som sammanhängande delsträngar ur dokumentets text och klassificerar dem med dokumenterade nyckelordsregler. |
 | 4 | `make verify` | **Grinden.** Strängmatchar varje citat mot källdokumentets text efter dokumenterad normalisering. Miss ⇒ citatet kasseras, objektet degraderas till länk-läge. Skriver `data/verification-report.json`. |
-| 5 | `make data` | Bygger `data/` som fristående CC0-produkt: `areas.geojson`, `bbox-index.json`, `omraden/{nvrid}.json` med oförenklad originalgeometri, `LICENSE`, schema-`README.md`. |
+| 5 | `make data` | Bygger `data/` som fristående CC0-produkt: översiktsfil, rutnätsdata i två storlekar (se `scripts/lib/rutnat.py`), `omraden/{nvrid}.json` med oförenklad originalgeometri, `LICENSE`, schema-`README.md`. Stämmer av varje geometri mot registrets eget `AREA_HA`. |
 | 6 | `make site` | Bygger `dist/` **enbart ur `data/`**. |
 
 `make all` kedjar ihop alltihop och rullar tillbaka `dist/` om testsviten faller.
@@ -103,17 +112,23 @@ avkommenteras.
 
 ## Deploy
 
-Se [`DEPLOY.md`](DEPLOY.md). Innan första deploy: byt `base_url` i
-`config.json` från placeholdern `https://EXEMPEL.se` till den skarpa domänen
-och kör `make all` igen — det är den enda variabel som styr canonical-URL:er,
-sitemap och OG-metadata.
+Se [`DEPLOY.md`](DEPLOY.md). Live på
+<https://dronarkoll-skane.pages.dev>. Byt `base_url` i `config.json` när en
+skarp domän är bestämd och kör `make site` — det är den enda variabel som styr
+canonical-URL:er, sitemap och OG-metadata.
+
+`dist/` innehåller inte per-områdesfilerna (`data/omraden/`): 10 772 HTML-sidor
+plus lika många JSON-filer spränger Cloudflare Pages tak på 20 000 filer per
+utrullning. De finns kvar här i förrådet som CC0-produkt.
 
 ## Katalogstruktur
 
 ```
 config.json            sajtnamn, bas-URL, throttling, förenklingstolerans
 scripts/01–07          pipelinesteg, ett per fil
-scripts/lib/           common.py (HTTP/cache), textnorm.py (normalisering), geom.py
+scripts/lib/           common.py (HTTP/cache), textnorm.py (normalisering),
+                       geom.py (förenkling, ESRI→GeoJSON, punkt-i-polygon),
+                       rutnat.py (rutindelning av kart- och positionsdata)
 site/                  statiska tillgångar och lokalt vendorad Leaflet
 data/                  CC0-produkten (se data/README.md för schema)
 cache/                 rå-svar, PDF:er, extraherad text — gitignorerad
