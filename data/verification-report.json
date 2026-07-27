@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "kord": "2026-07-27T00:34:44+00:00",
+ "kord": "2026-07-27T23:44:25+00:00",
  "normalisering": [
   "Unicode NFKC",
   "ligaturer (ﬁ ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ) expanderas",
@@ -12,25 +12,18 @@
  ],
  "krav": "exakt delsträngsförekomst efter normalisering; ingen fuzzy-matchning",
  "statistik": {
-  "antal_objekt": 640,
-  "objekt_med_verifierade_citat": 335,
+  "antal_objekt": 10681,
+  "objekt_med_verifierade_citat": 0,
   "objekt_i_lanklage": 0,
-  "objekt_utan_traffar": 305,
-  "objekt_med_ocr": 300,
-  "citat_prövade": 1353,
-  "citat_godkanda": 1353,
+  "objekt_utan_traffar": 10681,
+  "objekt_med_ocr": 0,
+  "citat_prövade": 0,
+  "citat_godkanda": 0,
   "citat_kasserade": 0,
   "felorsaker": {},
-  "per_klass_godkanda": {
-   "störningsförbud-djurliv": 367,
-   "annat-läs-beslutet": 398,
-   "motorfordon-möjligen-relevant": 443,
-   "start-landningsförbud": 53,
-   "uttryckligt-luftfartygsförbud": 92
-  },
-  "inledningar_godkanda": 970,
-  "andel_citat_godkanda_procent": 100.0,
-  "andel_objekt_med_verifierat_innehall_procent": 52.3
+  "per_klass_godkanda": {},
+  "andel_citat_godkanda_procent": 0.0,
+  "andel_objekt_med_verifierat_innehall_procent": 0.0
  },
  "kasserade": []
 }

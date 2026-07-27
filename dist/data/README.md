@@ -1,8 +1,8 @@
 # Databas: skyddade områden i Skåne län med föreskriftscitat
 
-Hämtningsdatum: **2026-07-26**
+Hämtningsdatum: **2026-07-27**
 Licens: **CC0 1.0** (se `LICENSE`)
-Antal objekt: **640**
+Antal objekt: **10681**
 
 Databasen är byggd för att kunna läsas fristående från webbtjänsten. Varje
 uppgift går att spåra till det myndighets-API-svar den kom ur.
@@ -104,14 +104,14 @@ ordning. Substansen är citatet.
      originalgeometrin. En fast tolerans är rimlig för ett stort reservat men
      äter en orimlig andel av ett litet, avlångt objekt.
 
-  Vid detta bygge: punktantalet gick från 166672 till
-  98810, 660 ringar behölls
+  Vid detta bygge: punktantalet gick från 2914028 till
+  1238393, 10837 ringar behölls
   oförenklade, största ytminskning för ett enskilt objekt var
-  1.996 % (NVRID
-  2043746), och hela datamängdens yta
-  gick från 2649382693 till
-  2648050020 m².
-  Använd tolerans per objekt: {'15 m': 582, '1.5 m': 7, '5 m': 48, 'oförenklad': 3}.
+  2.0 % (NVRID
+  2011005), och hela datamängdens yta
+  gick från 81554448819 till
+  81495284803 m².
+  Använd tolerans per objekt: {'15 m': 9280, '5 m': 968, '1.5 m': 387, 'oförenklad': 46}.
 - Inga buffertar, cirklar eller uppskattade zoner förekommer någonstans i
   databasen.
 
@@ -129,8 +129,8 @@ ordning. Substansen är citatet.
 
 ## Statistik vid detta bygge
 
-- Objekt med minst ett verifierat citat: 335
-- Objekt i länk-läge: 304
-- Objekt med OCR-tolkad text: 300
-- Objekt med säsongsdata: 49
+- Objekt med minst ett verifierat citat: 0
+- Objekt i länk-läge: 1222
+- Objekt med OCR-tolkad text: 0
+- Objekt med säsongsdata: 1266
 - Objekt utan geometri: 0

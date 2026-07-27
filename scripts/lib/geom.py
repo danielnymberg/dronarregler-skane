@@ -138,7 +138,12 @@ def forenkla_ring(ring, tol_m, ar_hal=False, riktning="krymp"):
     # Douglas–Peucker på en sluten ring kan i sällsynta fall låta två
     # förenklade segment korsa varandra. En självskärande ring är ogiltig
     # geometri och renderas oförutsägbart — behåll originalet i stället.
-    if har_sjalvskarning(ny):
+    #
+    # Men bara om originalet inte redan var självskärande. Källdatan innehåller
+    # enstaka trasiga ringar (Nedre Mjällådalens naturreservat har en femhörning
+    # som korsar sig själv redan i registret). Att behålla originalet löser inte
+    # det, och att kasta förenklingen ger bara en större trasig ring.
+    if har_sjalvskarning(ny) and not har_sjalvskarning(ring):
         return ring, False
     return ny, len(ny) < len(ring)
 
