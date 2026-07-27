@@ -1,0 +1,70 @@
+{
+ "port": 8787,
+ "granskningspunkter": [
+  {
+   "id": "a-karta-lansutsnitt",
+   "url": "http://localhost:8787/",
+   "viewport": "mobil 390×844",
+   "kontrollera": "Alla Skånepolygoner renderas vid länsutsnitt utan länsväljare och utan att något kärnlager måste slås på manuellt.",
+   "skarmdump": "a-karta-lansutsnitt-mobil.png"
+  },
+  {
+   "id": "b-positionssvar-hoganas",
+   "url": "http://localhost:8787/",
+   "atgard": "window.DK_positionssvar(12.556, 56.2)",
+   "kontrollera": "Svarsläge 2 visas med texten 'Ingen restriktion hittad i de källor tjänsten täcker' — aldrig som tillåtelse — plus LFV-raden och ansvarstexten.",
+   "skarmdump": "b-positionssvar-hoganas.png"
+  },
+  {
+   "id": "c-kullabergssidan",
+   "url": "http://localhost:8787/omrade/2000972-vastra-kullaberg/",
+   "kontrollera": "Citatet, dokumentlänken, hämtningsdatumet och ansvarstexten syns.",
+   "skarmdump": "c-kullaberg.png"
+  },
+  {
+   "id": "d-lfv-raster",
+   "url": "http://localhost:8787/",
+   "atgard": "Slå av och på kryssrutan 'Luftrumslager från LFV'",
+   "kontrollera": "Rastret försvinner/återkommer och attributionen '© LFV (CC BY-NC-ND 4.0)' syns i kartans hörn.",
+   "skarmdump": "d-lfv-raster.png"
+  },
+  {
+   "id": "e-ocr-varning",
+   "url": "http://localhost:8787/omrade/2000962-hallands-vadero/",
+   "kontrollera": "OCR-varningen 'Texten är OCR-tolkad ur inskannat original' visas.",
+   "skarmdump": "e-ocr-varning.png"
+  },
+  {
+   "id": "f-sasongsdata",
+   "url": "http://localhost:8787/omrade/2000962-hallands-vadero/",
+   "kontrollera": "Datumperioderna visas och kommer ur källdata.",
+   "skarmdump": "f-sasongsdata.png"
+  }
+ ],
+ "valda_objekt": {
+  "kullaberg": {
+   "nvrid": "2000972",
+   "namn": "Västra Kullaberg",
+   "citat": 9,
+   "ocr": true
+  },
+  "ocr": {
+   "nvrid": "2000962",
+   "namn": "Hallands Väderö",
+   "citat": 8,
+   "ocr": true
+  },
+  "sasong": {
+   "nvrid": "2000962",
+   "namn": "Hallands Väderö",
+   "citat": 8,
+   "ocr": true
+  },
+  "flest_citat": {
+   "nvrid": "2001815",
+   "namn": "Måkläppen",
+   "citat": 30,
+   "ocr": true
+  }
+ }
+}

@@ -13,6 +13,7 @@ Körs som `make test` eller `python3 tests/test_suite.py [--snabb]`.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import random
@@ -26,6 +27,14 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 from lib.common import CONFIG, DATA, DIST, read_json  # noqa: E402
 from lib.geom import har_sjalvskarning, punkt_i_geometri, ring_area_m2  # noqa: E402
 from lib.textnorm import normalisera  # noqa: E402
+
+# Steg 4:s verifieringsfunktion importeras och körs om — testet får inte vara
+# en egen, avvikande implementation av samma kontroll.
+_spec = importlib.util.spec_from_file_location(
+    "steg04", os.path.join(ROOT, "scripts", "04_verify.py"))
+_steg04 = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_steg04)
+verifiera_citat = _steg04.verifiera_citat
 
 CACHE_TEXT = os.path.join(ROOT, "cache", "text")
 
@@ -54,8 +63,19 @@ def dokumenttext(dokument_id):
 
 # ---------------------------------------------------------------- A
 def test_a_citatrakenskap(r):
-    """Varje citat som förekommer i byggd HTML/JSON ska strängmatcha sitt
-    källdokument. 100 % krävs."""
+    """Omkörning av steg 4 mot dist/-innehållet. 100 % krävs.
+
+    Testet importerar och kör steg 4:s egen verifieringsfunktion i stället för
+    att implementera om den. Skälet är konkret: en tidigare version av testet
+    matchade mot hela dokumentet medan steg 4 matchade mot den angivna sidan.
+    De två gav olika svar för ett citat som slutade i ett avstavat ord vid en
+    sidbrytning — och när grinden och dess kontroll inte är samma kontroll vet
+    man inte längre vilken som gäller.
+
+    Utöver omkörningen kontrolleras att citaten dessutom går att hitta i den
+    byggda HTML-sidan, och att de matchar hela dokumentets text — den senare
+    är en strängare kontroll som fångar just avstavningsfallet.
+    """
     provade = godkanda = 0
     saknade_text = 0
     for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
@@ -68,18 +88,25 @@ def test_a_citatrakenskap(r):
                 r.fel.append(f"A: källtext saknas för {c['dokument_id']} "
                              f"(NVRID {o['nvrid']})")
                 continue
+            # 1. Steg 4:s egen grind, omkörd.
+            ok, orsak, _ = verifiera_citat(c)
+            if not ok:
+                r.fel.append(f"A: steg 4:s verifiering underkänner citatet — "
+                             f"NVRID {o['nvrid']}, dok {c['dokument_id']}: {orsak}")
+            # 2. Strängare kontroll: citatet ska finnas i hela dokumentets text,
+            #    inte bara på sin sida.
             txt_norm = normalisera(txt)
             if normalisera(c["citat"]) in txt_norm:
-                godkanda += 1
+                if ok:
+                    godkanda += 1
             else:
                 r.fel.append(f"A: citat matchar inte källan — NVRID {o['nvrid']}, "
                              f"dok {c['dokument_id']}: {c['citat'][:80]!r}")
-            # Föreskriftsinledningen är också text som visas för användaren och
-            # måste därför vara ordagrann.
-            if c.get("inledning"):
-                if normalisera(c["inledning"]) not in txt_norm:
-                    r.fel.append(f"A: föreskriftsinledning matchar inte källan — "
-                                 f"NVRID {o['nvrid']}: {c['inledning'][:80]!r}")
+            # 3. Föreskriftsinledningen är också text som visas för användaren
+            #    och måste därför vara ordagrann.
+            if c.get("inledning") and normalisera(c["inledning"]) not in txt_norm:
+                r.fel.append(f"A: föreskriftsinledning matchar inte källan — "
+                             f"NVRID {o['nvrid']}: {c['inledning'][:80]!r}")
 
     # Samma citat ska också gå att hitta i den byggda HTML-sidan.
     kontrollerade_sidor = 0
@@ -241,6 +268,61 @@ def test_c_golden(r):
             r.kolla(http_ok(pdf), f"C2 {nvrid}: PDF-länken svarade inte 200: {pdf}")
         if o and o.get("citat"):
             r.notera(f"C2 {nvrid} ({o['namn']}): {len(o['citat'])} verifierade citat ✓")
+
+    # C2b Citat som måste överleva hela vägen ut i byggd HTML — särskilt de
+    # som bär höjdband och undantag, eftersom det är dem en sammanfattning
+    # skulle ha tappat.
+    for fall in golden.get("citat_som_maste_finnas", []):
+        nvrid = fall["nvrid"]
+        o = read_json(os.path.join(DIST, "data", "omraden", f"{nvrid}.json"))
+        if not r.kolla(o is not None, f"C2b {fall['id']}: områdesdata saknas"):
+            continue
+        norm_del = normalisera(fall["delstrang"])
+        i_data = any(norm_del in normalisera(c["citat"]) for c in o.get("citat") or [])
+        r.kolla(i_data, f"C2b {fall['id']} ({fall['namn']}): delsträngen "
+                        f"{fall['delstrang']!r} saknas i något verifierat citat")
+        sidpath = os.path.join(DIST, "omrade", f"{nvrid}-{o['slug']}", "index.html")
+        if os.path.exists(sidpath):
+            with open(sidpath, encoding="utf-8") as fh:
+                sida = normalisera(fh.read())
+            r.kolla(norm_del in sida,
+                    f"C2b {fall['id']}: delsträngen syns inte på den byggda sidan")
+        if i_data:
+            r.notera(f"C2b {fall['id']} ({fall['namn']}): {fall['delstrang']!r} "
+                     "bevarad ordagrant hela vägen ut ✓")
+
+    # C2c Regressioner i hur föreskriftsinledningen hittas.
+    reg = golden.get("inledning_regressioner") or {}
+    for fall in reg.get("maste_ha_citat", []):
+        o = read_json(os.path.join(DIST, "data", "omraden", f"{fall['nvrid']}.json"))
+        if not r.kolla(o is not None, f"C2c {fall['nvrid']}: områdesdata saknas"):
+            continue
+        med_inledning = [c for c in o.get("citat") or [] if c.get("inledning")]
+        r.kolla(med_inledning,
+                f"C2c {fall['namn']} ({fall['nvrid']}): inget citat med verifierad "
+                "föreskriftsinledning — kolonfri listrubrik hittas inte längre")
+        if med_inledning:
+            r.notera(f"C2c {fall['namn']}: kolonfri listrubrik hittad, "
+                     f"{len(med_inledning)} citat med inledning ✓")
+
+    # Varje verifierad inledning ska sluta som en listrubrik, inte som brödtext.
+    AVSLUT = re.compile(r"(?::|\batt)\s*:?\s*$", re.I)
+    dåliga = []
+    antal_inledningar = 0
+    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
+        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        for c in o.get("citat") or []:
+            if not c.get("inledning"):
+                continue
+            antal_inledningar += 1
+            if not AVSLUT.search(c["inledning"].strip()):
+                dåliga.append(f"{o['nvrid']}: {c['inledning'][:70]!r}")
+    r.kolla(not dåliga,
+            f"C2c: {len(dåliga)} föreskriftsinledningar slutar inte på kolon eller "
+            f"'att' — brödtext har accepterats som listrubrik: {dåliga[:5]}")
+    if not dåliga:
+        r.notera(f"C2c: alla {antal_inledningar} verifierade föreskriftsinledningar "
+                 "slutar som listrubrik ✓")
 
     # C3 Säsong: minst ett område visar datumperioder ur källdata.
     med_sasong = []

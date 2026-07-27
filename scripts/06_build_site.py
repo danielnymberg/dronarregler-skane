@@ -54,7 +54,10 @@ FLERA_BESLUT = (
 KLASS_ETIKETT = {
     "uttryckligt-luftfartygsförbud": "Nämner uttryckligen luftfartyg",
     "start-landningsförbud": "Nämner start eller landning med luftfartyg",
-    "motorfordon-möjligen-relevant": "Nämner motordrivet fordon — möjligen relevant",
+    # Klassen träffar på "motordrivet fordon" men också på "fordon" och
+    # "farkost" utan motorbestämning. Etiketten säger därför fordon ELLER
+    # farkost — den ska beskriva citatet, inte påstå mer än det står.
+    "motorfordon-möjligen-relevant": "Nämner fordon eller farkost — möjligen relevant",
     "störningsförbud-djurliv": "Nämner störning av djurlivet",
     "annat-läs-beslutet": "Nämner tillträde eller framfart — läs beslutet",
 }
@@ -137,6 +140,31 @@ def sidmall(*, titel, beskrivning, kanonisk, innehall, bred=False,
 """
 
 
+def avindragen(text: str) -> str:
+    """Ta bort den indragning PDF-layouten lagt på varje rad.
+
+    Enbart en visningsåtgärd: `pdftotext -layout` behåller sidans indrag, vilket
+    gör citatet svårläst i en smal textspalt. Radernas gemensamma inledande
+    blanksteg tas bort. Orden och radbrytningarna är oförändrade, och
+    verifieringens normalisering kollapsar ändå all whitespace — den lagrade
+    strängen i data/ är orörd.
+    """
+    rader = text.split("\n")
+    if len(rader) < 2:
+        return text
+    # Citatets första rad har redan fått sitt inledande blanksteg bortklippt vid
+    # utskärningen, så den räknas inte med när den gemensamma indragningen mäts
+    # — annars blir minsta indrag alltid 0 och raderna under står kvar indragna.
+    ovriga = [len(r) - len(r.lstrip()) for r in rader[1:] if r.strip()]
+    if not ovriga:
+        return text
+    minsta = min(ovriga)
+    if minsta == 0:
+        return text
+    return rader[0] + "\n" + "\n".join(
+        r[minsta:] if r.strip() else r for r in rader[1:])
+
+
 def rendera_citat(c):
     etikett = KLASS_ETIKETT.get(c["klassificering"], c["klassificering"])
     if c.get("konfidens") == "låg":
@@ -145,11 +173,11 @@ def rendera_citat(c):
     # Föreskriftsinledningen är en egen, separat verifierad delsträng ur samma
     # sida. Den visas som eget stycke ovanför punkten — aldrig hopskarvad med
     # citatet till en ny textmassa.
-    inledning = (f"<blockquote>{E(c['inledning'])}</blockquote>"
+    inledning = (f"<blockquote>{E(avindragen(c['inledning']))}</blockquote>"
                  if c.get("inledning") else "")
     return f"""<div class="citat">
 {inledning}
-<blockquote>{E(c['citat'])}</blockquote>
+<blockquote>{E(avindragen(c['citat']))}</blockquote>
 <div class="kalla">
 <span class="chip">{E(etikett)}</span>
 <span class="chip">Konfidens: {E(c.get('konfidens') or '—')}</span>

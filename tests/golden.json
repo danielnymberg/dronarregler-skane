@@ -26,6 +26,46 @@
     }
   ],
 
+  "citat_som_maste_finnas": [
+    {
+      "id": "hojdband-sodra-aspet",
+      "nvrid": "2057123",
+      "namn": "Södra Äspet",
+      "delstrang": "på en höjd understigande 120 meter",
+      "varfor": "Beslutet för Södra Äspet reglerar drönarflygning med ett HÖJDBAND: förbudet gäller flygning under 120 meter över medelhavsnivå. Uppdragets tredje felklass är just att trubbiga verdikt sväljer höjdband — ett R-område med golv på 400 ft AMSL presenterades av en befintlig tjänst som totalförbud från marken. Testet låser fast att höjdangivelsen följer med hela vägen ut i det visade citatet. Skulle någon införa sammanfattning eller förkortning av citat är det här testet det som faller först."
+    },
+    {
+      "id": "uttryckligt-dronarforbud-gyetorp",
+      "nvrid": "2054042",
+      "namn": "Gyetorp",
+      "delstrang": "flyga med drönare",
+      "varfor": "Rakaste tänkbara fall: en föreskriftspunkt som ordagrant säger 'flyga med drönare'. Faller det här testet fungerar inte extraktionens kärna."
+    },
+    {
+      "id": "undantag-hallands-vadero",
+      "nvrid": "2000962",
+      "namn": "Hallands Väderö",
+      "delstrang": "landa med luftfarkost med undantag",
+      "varfor": "Föreskriften har ett UNDANTAG (Sjöfartsverkets fyrinspektion). En sammanfattning hade sannolikt tappat undantaget och gjort förbudet mer absolut än det är. Ordagrannheten bevarar det."
+    }
+  ],
+
+  "inledning_regressioner": {
+    "maste_ha_citat": [
+      {
+        "nvrid": "2051784",
+        "namn": "Lilla Köpinge",
+        "varfor": "Beslutets föreskriftslista inleds med 'Utöver föreskrifter och förbud i andra lagar och författningar är det förbjudet att' UTAN avslutande kolon. En tidigare version av extraktionen krävde kolon och tappade därför förbudet för hela listan — punkten om att parkera fordon försvann helt. Testet låser fast att kolonfria listrubriker hittas."
+      },
+      {
+        "nvrid": "2014623",
+        "namn": "Maltesholm",
+        "varfor": "Samma rubrik men bruten över två rader i OCR-texten. Testet låser fast att rubriken får sträcka sig över radbrytning."
+      }
+    ],
+    "avslutsregel": "Varje verifierad föreskriftsinledning måste sluta på kolon eller på ordet 'att'. Regeln finns för att en lösare variant lät vanlig brödtext passera som listrubrik — meningar som '...möjligheten att lägga ett helårs beträdnadsförbud på revlarna' innehåller ordet förbud utan att vara en rubrik, och när de accepterades började beslutens skäl klassas som föreskrifter. Antalet störningsträffar sköt då från 257 till 563 utan att en enda ny föreskrift hittats."
+  },
+
   "min_omraden_med_sasong": 1,
   "_sasong_om": "Minst ett djur- och växtskyddsområde eller tillträdesförbud i Skåne ska visa sina datumperioder hämtade ur källdata (foreskriftsOmraden.franDatum/tillDatum), inte hårdkodade. Testet kontrollerar både att datumen står på sidan och att de INTE förekommer som strängliteraler i sajtbyggaren."
 }

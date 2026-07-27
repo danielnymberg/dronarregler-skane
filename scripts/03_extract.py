@@ -66,6 +66,21 @@ BRUS = re.compile(
     r"^\s*(inneh[aå]ll|bilaga|sida|postadress|bes[oö]ksadress|telefon|"
     r"e-post|webb|org\.?\s*nr)\b", re.I)
 
+# Avsnitt som per definition INTE är föreskrifter. Ett beslut återger ofta sina
+# egna föreskrifter i skälen — "Enligt gällande föreskrifterna är det bland
+# annat förbjudet att…" — och den återgivningen ska inte visas som föreskrift.
+# Den riktiga punkten citeras ändå från föreskriftsavsnittet. Matchningen görs
+# på segmentets FÖRSTA rad, alltså på avsnittsrubriken, inte på brödtexten.
+SKAL_RUBRIK = re.compile(
+    r"^\s*(sk[aä]l(en)?\s+(f[oö]r|till)\b|"
+    r"[aä]rendets\s+handl[aä]ggning|"
+    r"l[aä]nsstyrelsens\s+(bed[oö]mning|bem[oö]tande|[oö]verv[aä]gand)|"
+    r"beskrivning\s+av\s+omr[aå]det|"
+    r"yttranden?\b|inkomna\s+synpunkter|"
+    r"hur\s+man\s+[oö]verklagar|upplysningar\b|"
+    r"l[aä]nsstyrelsen\s*$|"
+    r"kopia\s+till|s[aä]ndlista)", re.I)
+
 KLASSER = {
     "uttryckligt-luftfartygsforbud": "uttryckligt-luftfartygsförbud",
     "start-landningsforbud": "start-landningsförbud",
@@ -113,6 +128,26 @@ def segmentera(sidtext: str):
 NUMRERAD = re.compile(r"^\d{1,2}\s*[.)]$")
 
 
+HANGANDE_AVSTAVNING = re.compile(r"\s\S*\w[-­]$")
+
+
+def trim_avstavning(text: str) -> str:
+    """Kapa bort ett avslutande avstavat ord.
+
+    En sida kan sluta mitt i ett ord: "…eller styr-" med fortsättningen på
+    nästa sida. Ett citat som slutar så är dels obegripligt för läsaren, dels
+    en källa till falska verifieringsfel — normaliseringen slår ihop
+    avstavningen över sidbrytningen, så samma sträng finns på sidan men inte i
+    hela dokumentet. Ordet klipps därför bort. Resultatet är fortfarande en
+    sammanhängande delsträng, eftersom bara slutet kapas.
+    """
+    m = HANGANDE_AVSTAVNING.search(text)
+    while m:
+        text = text[:m.start()].rstrip()
+        m = HANGANDE_AVSTAVNING.search(text)
+    return text
+
+
 def kapa(text: str, start_offset: int, numrerad: bool = False):
     """Kapa ett segment till läsbar citatlängd utan att bryta ordagrannheten.
 
@@ -137,14 +172,14 @@ def kapa(text: str, start_offset: int, numrerad: bool = False):
                 text = text[:styckebrott.start()].rstrip()
                 break
     if len(text) <= MAX_CITAT:
-        return text, start_offset
+        return trim_avstavning(text), start_offset
     bit = text[:MAX_CITAT]
     delar = list(MENING.finditer(bit))
     if delar:
         bit = bit[:delar[-1].start() + 1]
     else:
         bit = bit[:bit.rfind(" ")] if " " in bit else bit
-    return bit.rstrip(), start_offset
+    return trim_avstavning(bit.rstrip()), start_offset
 
 
 INLEDNING_MAX_AVSTAND = 3500   # tecken bakåt på samma sida
@@ -164,27 +199,54 @@ def hitta_inledning(sidtext: str, segment_start: int, foregaende_sida: str = Non
     verifieras separat i steg 4 — den limmas aldrig ihop med citatet till en ny
     textmassa. Returnerar (text, offset) eller (None, None).
     """
+    # Rubriken måste både INNEHÅLLA ett förbuds-/tillståndsuttryck och SLUTA
+    # som en inledning till en uppräkning — alltså på kolon, eller på "att"
+    # (med eller utan kolon). Enbart innehållskravet räcker inte: en vanlig
+    # mening som "…möjligheten att lägga ett helårs beträdnadsförbud på
+    # revlarna" innehåller ordet förbud utan att vara en rubrik, och om den
+    # accepteras som föreskriftsinledning börjar brödtext klassas som
+    # föreskrift. Avslutskravet skiljer rubrik från brödtext.
     INLEDNINGSORD = re.compile(
         r"f[oö]rbjud|f[oö]rbud|f[aå]r\s+inte|f[aå]r\s+ej|g[aä]ller\s+f[oö]ljande|"
-        r"f[oö]reskrift|till[aå]ts\s+inte|utan\s+.{0,40}till[aå]tels|"
-        r"kr[aä]v(?:er|s)\s+tillst[aå]nd", re.I)
+        r"till[aå]ts\s+inte|till[aå]tels|tillst[aå]nd|kr[aä]v(?:er|s)", re.I)
+    INLEDNINGSAVSLUT = re.compile(r"(?::|\batt)\s*:?\s*$", re.I)
 
     def sok(fonster, fonster_start):
-        # Gå bakåt över alla kolon i fönstret, inte bara det sista: i en
-        # numrerad föreskriftslista står blockets rubrik ovanför punkt 1, och
-        # mellan den och punkt 12 kan det finnas andra kolon.
-        kolon = fonster.rfind(":")
-        while kolon >= 0:
-            radstart = fonster.rfind("\n", 0, kolon) + 1
-            rad = fonster[radstart:kolon + 1]
+        """Sista raden i fönstret som ser ut som en föreskriftsinledning.
+
+        Rubriken slutar ofta med kolon ("Det är förbjudet att:") men långt
+        ifrån alltid — "Utöver föreskrifter och förbud i andra lagar och
+        författningar är det förbjudet att" följt direkt av punkt 1 är minst
+        lika vanligt. En tidigare version krävde kolon, och tappade då
+        förbudet för hela listan under en sådan rubrik. Rader som själva är
+        numrerade punkter utesluts, liksom rubrikrader av typen "Bilaga 2:".
+
+        Rubriken kan sträcka sig över två rader; därför prövas både raden
+        ensam och raden ihop med den föregående — som en sammanhängande
+        delsträng, aldrig hopskarvad.
+        """
+        rader, pos, kandidater = [], 0, []
+        for rad in fonster.split("\n"):
+            rader.append((rad, pos))
+            pos += len(rad) + 1
+        for i, (rad, radpos) in enumerate(rader):
             text = rad.strip()
-            # Rubriken ska se ut som en föreskriftsinledning, inte som en
-            # rubrikrad av typen "Bilaga 2:" eller "Postadress:".
-            if (INLEDNING_MIN <= len(text) <= INLEDNING_MAX
-                    and INLEDNINGSORD.search(text)):
-                return text, fonster_start + radstart + (len(rad) - len(rad.lstrip()))
-            kolon = fonster.rfind(":", 0, kolon)
-        return None, None
+            if PUNKT.match(rad) or not text:
+                continue
+            for start_i in (i, i - 1):
+                if start_i < 0:
+                    continue
+                bit = fonster[rader[start_i][1]:radpos + len(rad)]
+                kandidat = bit.strip()
+                if (INLEDNING_MIN <= len(kandidat) <= INLEDNING_MAX
+                        and INLEDNINGSORD.search(kandidat)
+                        and INLEDNINGSAVSLUT.search(kandidat)
+                        and not PUNKT.match(bit)):
+                    offset = (fonster_start + rader[start_i][1]
+                              + (len(bit) - len(bit.lstrip())))
+                    kandidater.append((kandidat, offset))
+                    break
+        return kandidater[-1] if kandidater else (None, None)
 
     start = max(0, segment_start - INLEDNING_MAX_AVSTAND)
     text, offset = sok(sidtext[start:segment_start], start)
@@ -284,6 +346,8 @@ def extrahera_dokument(dok):
             continue
         for etikett, segtext, offset in segmentera(sidtext):
             if len(segtext.strip()) < MIN_CITAT or BRUS.match(segtext):
+                continue
+            if SKAL_RUBRIK.match(segtext.strip().split("\n")[0]):
                 continue
             citat, cit_offset = kapa(
                 segtext, offset, numrerad=bool(etikett and NUMRERAD.match(etikett)))

@@ -416,6 +416,69 @@ hade passerat även om datumet var inskrivet för hand.
 
 ---
 
+### D-33 — Avstavat slutord kapas, och test A blev samma kontroll som steg 4
+Ett citat slutade "…eller styr-" — ett ord brutet vid sidbrytningen. Steg 4
+godkände det (matchning mot sidan, där bindestrecket står kvar) medan test A
+underkände det (matchning mot hela dokumentet, där normaliseringen slår ihop
+avstavningen över sidbrytningen). Två kontroller, två svar.
+
+Två åtgärder:
+1. Extraktionen kapar bort ett avslutande avstavat ord. Citatet blir läsbart
+   och matchar både sidan och hela dokumentet. Det är fortfarande en
+   sammanhängande delsträng — bara slutet kapas.
+2. **Test A importerar och kör steg 4:s egen funktion** i stället för att
+   implementera om den. När grinden och dess kontroll inte är samma kontroll
+   vet man inte längre vilken som gäller.
+
+### D-34 — Beslutens skäl citeras inte som föreskrifter
+Ett beslut återger ofta sina egna föreskrifter i skälen: "Enligt gällande
+föreskrifterna är det bland annat förbjudet att…". Den återgivningen syntes på
+områdessidorna som en föreskrift, trots att den riktiga punkten citeras separat
+från föreskriftsavsnittet. Segment vars **första rad** är en känd icke-
+föreskriftsrubrik — "Skäl för beslut", "Ärendets handläggning", "Länsstyrelsens
+bedömning", "Upplysningar", "Hur man överklagar" m.fl. — utesluts. Matchningen
+sker på avsnittsrubriken, inte på brödtexten, så en föreskrift som råkar
+innehålla ordet "skäl" berörs inte. Utfall: 1 084 → 1 051 citat.
+
+### D-35 — Listrubrik utan kolon: rätt problem, fel första lösning
+Stickprov på tre reservat utan citat visade ett verkligt bortfall: rubriken
+"Utöver föreskrifter och förbud i andra lagar och författningar är det
+förbjudet att" står ofta **utan avslutande kolon**, direkt följd av punkt 1.
+Sökningen krävde kolon och tappade därför förbudet för hela listan — punkten om
+att framföra motordrivet fordon i naturreservatet Maltesholm försvann helt.
+
+Första rättningen tog bort kolonkravet och accepterade varje rad som innehöll
+ett förbudsord. Täckningen steg till 362 objekt — och störningsträffarna sköt
+från 257 till 563 utan att en enda ny föreskrift hittats. Meningar som
+"…diskuterat möjligheten att lägga ett helårs beträdnadsförbud på revlarna"
+accepterades som listrubrik, varpå beslutens skäl började klassas som
+föreskrifter. Nettoeffekten var sämre än problemet: R8 säger att trubbiga
+larm är ett fel, inte bara ett skönhetsfel.
+
+Slutlig regel: rubriken måste både **innehålla** ett förbuds- eller
+tillståndsuttryck och **sluta** som en inledning till en uppräkning — på kolon,
+eller på ordet "att". Avslutskravet är det som skiljer rubrik från brödtext.
+Rubriken får sträcka sig över två rader och över en sidbrytning.
+
+Utfall: 289 → 335 objekt med citat, utan att brödtext släpps igenom. Båda
+felriktningarna har golden tests (C2c): två objekt vars kolonfria rubrik måste
+hittas, och en regel som kräver att *varje* verifierad inledning slutar som en
+listrubrik.
+
+### D-36 — Etiketterna beskriver citatet, inte rättsföljden
+Vid visuell granskning stod "Föreskrift om motordrivet fordon" på ett citat som
+i själva verket sa "frambringa farkost" — träffen kom från ordet *farkost*, inte
+från *motordrivet*. Etiketterna skrevs om så att de beskriver vad citatet
+nämner: "Nämner fordon eller farkost — möjligen relevant", "Nämner uttryckligen
+luftfartyg" och så vidare. En etikett får inte påstå mer än citatet gör.
+
+### D-37 — Indragningen från PDF-layouten tas bort vid visning
+`pdftotext -layout` behåller sidans indrag, vilket gör citatet svårläst i en
+smal textspalt. Radernas gemensamma inledande blanksteg tas bort **vid
+visning**. Orden och radbrytningarna är oförändrade, den lagrade strängen i
+`data/` är orörd, och verifieringens normalisering kollapsar ändå all
+whitespace — så ordagrannheten är opåverkad.
+
 ## Öppna punkter
 
 - `base_url` är fortfarande placeholdern `https://EXEMPEL.se`.
