@@ -15,6 +15,7 @@ geometri som används för punkt-i-polygon. areas.geojson är enbart visning.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -22,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.common import (CACHE, CONFIG, DATA, ensure_dir, log, read_json,
                         slugify, today, write_json)
 from lib.geom import bbox, forenkla_geometri, ring_area_m2
+from lib.rutnat import GEOMETRI_GRADER, VISNING_GRADER, rutor_for_bbox
 
 TOL = CONFIG["simplify_tolerance_m"]
 
@@ -88,6 +90,34 @@ def sammanfoga_geometrier(features):
     return {n: {"type": "MultiPolygon", "coordinates": p} for n, p in per_nvrid.items()}
 
 
+def netto_yta_m2(geom):
+    """Nettoyta: ytterringar minus hål."""
+    if not geom:
+        return 0.0
+    polys = (geom["coordinates"] if geom["type"] == "MultiPolygon"
+             else [geom["coordinates"]])
+    return sum(ring_area_m2(r) * (1 if j == 0 else -1)
+               for rings in polys for j, r in enumerate(rings))
+
+
+def arealavstamning(geom, area_ha):
+    """Stäm av den hämtade geometrin mot registrets eget arealfält.
+
+    Den här kontrollen finns för att en tyst geometrifel annars är osynlig.
+    Tjänstens GeoJSON-utskrift plattade ihop flerdelade områden till en polygon
+    där de övriga delarna blev "hål": naturreservatet Verkeån blev 374 ha i
+    stället för registrets 1 424 ha, och en position i den bortplattade delen
+    fick svaret "ingen restriktion hittad". AREA_HA är en oberoende uppgift ur
+    samma post och avslöjar sådant direkt.
+
+    Returnerar (beraknad_ha, avvikelse_procent) eller (None, None).
+    """
+    if not area_ha or area_ha <= 0 or not geom:
+        return None, None
+    beraknad = netto_yta_m2(geom) / 10_000.0
+    return round(beraknad, 2), round((beraknad - area_ha) / area_ha * 100, 2)
+
+
 def sortera_dokument(dokument):
     """Nyast beslut först. Tjänsten avgör inte vilken lydelse som gäller —
     men den visar besluten i datumordning så läsaren själv kan se ordningen."""
@@ -118,6 +148,94 @@ INGÅR INTE I DENNA LICENS
   LFV:s egen WMS-server under CC BY-NC-ND 4.0 och finns inte i den här
   katalogen. Ingen LFV-geometri har lagrats, bearbetats eller återpublicerats.
 """
+
+
+def bygg_rutnat(features, bbox_rader, geometrier):
+    """Skriver översiktsfilen, visningsrutorna, geometrirutorna och bbox-rutorna.
+
+    Se lib/rutnat.py för varför det är två rutstorlekar.
+    """
+    band = {b["id"]: b for b in CONFIG["zoomband"]}
+    ov = band["oversikt"]
+    for katalog in ("rutor", "geom", "bbox"):
+        ensure_dir(os.path.join(DATA, katalog))
+
+    # --- översikt: en fil, hela landet, bara områden över tröskeln ---
+    oversikt, utelamnade = [], 0
+    for f in features:
+        if (f["properties"].get("area_ha") or 0) < ov["min_area_ha"]:
+            utelamnade += 1
+            continue
+        enkel, _ = forenkla_geometri(f["geometry"], ov["tolerans_m"])
+        oversikt.append({"type": "Feature", "geometry": enkel,
+                         "properties": f["properties"]})
+    write_json(os.path.join(DATA, "oversikt.json"),
+               {"type": "FeatureCollection", "tolerans_m": ov["tolerans_m"],
+                "min_area_ha": ov["min_area_ha"], "antal_visade": len(oversikt),
+                "antal_utelamnade": utelamnade, "features": oversikt}, compact=True)
+
+    # --- visningsrutor (1°), förenklad geometri ---
+    per_ruta = {}
+    for f in features:
+        for rid in rutor_for_bbox(bbox(f["geometry"]), VISNING_GRADER):
+            per_ruta.setdefault(rid, []).append(f)
+    for rid, fs in per_ruta.items():
+        write_json(os.path.join(DATA, "rutor", f"{rid}.json"),
+                   {"type": "FeatureCollection", "features": fs}, compact=True)
+
+    # --- geometrirutor (0,25°), ORIGINALGEOMETRI för punkt-i-polygon ---
+    #
+    # Storleksfördelningen är extremt skev: av 10 681 områden är medianen 1,9 kB
+    # medan 50 stycken — fjällreservaten — är över 100 kB och tillsammans 30 av
+    # 76 MB. Läggs de i varje ruta de rör kopieras Vindelfjällen in i dussintals
+    # rutor och katalogen växer till 386 MB med enskilda rutor på 5,7 MB.
+    #
+    # De stora får därför egna filer och refereras från rutan. Geometrin
+    # förenklas inte: en förenkling som krymper ytan skulle kunna ge svaret
+    # "ingen restriktion hittad" åt någon som står strax innanför gränsen, och
+    # en som växer ytan går inte att kombinera med meningsfull komprimering.
+    ensure_dir(os.path.join(DATA, "geom", "stora"))
+    STOR_GRANS = 100 * 1024
+    stora, per_geom = {}, {}
+    for nvrid, geom in geometrier.items():
+        if not geom:
+            continue
+        rutor = rutor_for_bbox(bbox(geom), GEOMETRI_GRADER)
+        if len(json.dumps(geom, separators=(",", ":"))) > STOR_GRANS and len(rutor) > 1:
+            stora[nvrid] = geom
+            for rid in rutor:
+                per_geom.setdefault(rid, {"omraden": {}, "stora": []})["stora"].append(nvrid)
+        else:
+            for rid in rutor:
+                per_geom.setdefault(rid, {"omraden": {}, "stora": []})["omraden"][nvrid] = geom
+    for nvrid, geom in stora.items():
+        write_json(os.path.join(DATA, "geom", "stora", f"{nvrid}.json"), geom,
+                   compact=True)
+    for rid, d in per_geom.items():
+        write_json(os.path.join(DATA, "geom", f"{rid}.json"), d, compact=True)
+
+    # --- bbox-rutor (0,25°), kandidatsökning inför positionssvaret ---
+    per_bbox = {}
+    for rad in bbox_rader:
+        for rid in rutor_for_bbox(rad[6:10], GEOMETRI_GRADER):
+            per_bbox.setdefault(rid, []).append(rad)
+    for rid, rader in per_bbox.items():
+        write_json(os.path.join(DATA, "bbox", f"{rid}.json"),
+                   {"rader": rader}, compact=True)
+
+    return {
+        "visning_grader": VISNING_GRADER,
+        "geometri_grader": GEOMETRI_GRADER,
+        "antal_visningsrutor": len(per_ruta),
+        "antal_geometrirutor": len(per_geom),
+        "antal_stora_geometrifiler": len(stora),
+        "stor_grans_byte": STOR_GRANS,
+        "antal_bboxrutor": len(per_bbox),
+        "oversikt_antal": len(oversikt),
+        "oversikt_utelamnade": utelamnade,
+        "oversikt_tolerans_m": ov["tolerans_m"],
+        "oversikt_min_area_ha": ov["min_area_ha"],
+    }
 
 
 def skriv_licens_och_schema(manifest, stats, forenkling):
@@ -291,6 +409,16 @@ def main():
                   "_matgrans_ha": 1.0}
     stats = {"med_verifierade_citat": 0, "lanklage": 0, "utan_geometri": 0,
              "med_ocr": 0, "med_sasongsdata": 0}
+    # Riktningen betyder olika saker. Geometri MINDRE än registrerad areal är
+    # farligt: delar av området saknas på kartan, och en position där får svaret
+    # "ingen restriktion hittad". Geometri STÖRRE är i praktiken registrets egen
+    # inkonsekvens — naturreservatet Norra Ljunghusen har AREA_HA 15,64 medan
+    # dess egen polygon är 186 ha, i både GEOJSON- och ESRI-utskriften. Det är
+    # inget vi kan rätta, men det ska redovisas.
+    areal = {"provade": 0, "mindre_an_registrerat_over_25_procent": 0,
+             "storre_an_registrerat_over_25_procent": 0,
+             "avvikelse_over_5_procent": 0, "varsta_mindre": [], "varsta_storre": [],
+             "regel": "geometrins nettoyta stäms av mot registrets AREA_HA"}
 
     for nvrid, rec in sorted(objekt.items()):
         geom = geometrier.get(nvrid)
@@ -356,6 +484,23 @@ def main():
             omrade["bbox"] = None
         else:
             omrade["geometri"] = geom       # OFÖRENKLAD — används för punkt-i-polygon
+            ber, avv = arealavstamning(geom, rec.get("area_ha"))
+            omrade["beraknad_area_ha"] = ber
+            omrade["arealavvikelse_procent"] = avv
+            if avv is not None:
+                areal["provade"] += 1
+                if abs(avv) > 5:
+                    areal["avvikelse_over_5_procent"] += 1
+                if abs(avv) > 25:
+                    post = {"nvrid": nvrid, "namn": rec["namn"],
+                            "area_ha_register": rec.get("area_ha"),
+                            "beraknad_ha": ber, "avvikelse_procent": avv}
+                    if avv < 0:
+                        areal["mindre_an_registrerat_over_25_procent"] += 1
+                        areal["varsta_mindre"].append(post)
+                    else:
+                        areal["storre_an_registrerat_over_25_procent"] += 1
+                        areal["varsta_storre"].append(post)
             bb = bbox(geom)
             omrade["bbox"] = bb
             enkel, fstat, anvand_tol = forenkla_med_ytgrans(geom)
@@ -390,13 +535,14 @@ def main():
                     "karnlager": rec["karnlager"],
                     "slug": slugs[nvrid],
                     "svarslage": svarslage,
+                    "area_ha": rec.get("area_ha"),
                     "antal_citat": len(citat),
                     "ocr": ocr,
                     "sasong": bool(sasong),
                 },
             })
             bbox_index.append([nvrid, slugs[nvrid], rec["namn"], rec["skyddstyp"],
-                               rec["lager"], svarslage] + bb)
+                               rec["lager"], svarslage] + bb + [len(citat)])
 
         write_json(os.path.join(DATA, "omraden", f"{nvrid}.json"), omrade, compact=True)
 
@@ -409,9 +555,15 @@ def main():
         "schema_version": 1,
         "hamtningsdatum": manifest["hamtningsdatum"],
         "kolumner": ["nvrid", "slug", "namn", "skyddstyp", "lager", "svarslage",
-                     "minx", "miny", "maxx", "maxy"],
+                     "minx", "miny", "maxx", "maxy", "antal_citat"],
         "rader": bbox_index,
     }, compact=True)
+
+    rutnat = bygg_rutnat(features, bbox_index, geometrier)
+    log(f"  rutnät: {rutnat['antal_visningsrutor']} visningsrutor, "
+        f"{rutnat['antal_geometrirutor']} geometrirutor; översikt "
+        f"{rutnat['oversikt_antal']} områden "
+        f"({rutnat['oversikt_utelamnade']} under {rutnat['oversikt_min_area_ha']} ha)")
 
     skriv_licens_och_schema(manifest, stats, forenkling)
 
@@ -421,9 +573,19 @@ def main():
                        "regel": "Douglas–Peucker med krympgaranti: en ring vars "
                                 "yta skulle växa av förenklingen behålls oförenklad"},
         "statistik": stats,
+        "arealavstamning": areal,
+        "rutnat": rutnat,
     }
     write_json(os.path.join(DATA, "manifest.json"), manifest)
+    areal["varsta_mindre"] = sorted(areal["varsta_mindre"],
+                                    key=lambda x: x["avvikelse_procent"])[:25]
+    areal["varsta_storre"] = sorted(areal["varsta_storre"],
+                                    key=lambda x: -x["avvikelse_procent"])[:25]
     log(f"Steg 5 klart: {len(features)} ytor, {stats}")
+    log(f"  arealavstämning mot AREA_HA: {areal['provade']} prövade, "
+        f"{areal['mindre_an_registrerat_over_25_procent']} mindre än registrerat "
+        f"(>25 %), {areal['storre_an_registrerat_over_25_procent']} större "
+        f"(>25 %, registrets egen inkonsekvens)")
     log(f"  förenkling: {forenkling['punkter_fore']} → {forenkling['punkter_efter']} "
         f"punkter, max ytminskning {forenkling['max_ytminskning_procent']} %, "
         f"objekt med ytökning: {forenkling['objekt_med_ytokning']}")

@@ -14,6 +14,7 @@
   --ocr-bg: #fff8e1;
   --ocr-kant: #a07800;
   --fokus: #0b4f8a;
+  --skugga: 0 -2px 16px rgba(0, 0, 0, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,11 +34,11 @@
     --ocr-bg: #2c2410;
     --ocr-kant: #d9b84d;
     --fokus: #7cc0ff;
+    --skugga: 0 -2px 16px rgba(0, 0, 0, 0.5);
   }
 }
 
 * { box-sizing: border-box; }
-
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -49,111 +50,168 @@ body {
 }
 
 a { color: var(--lank); }
-a:focus-visible, button:focus-visible, summary:focus-visible {
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible {
   outline: 3px solid var(--fokus);
   outline-offset: 2px;
 }
 
-.wrap { max-width: 46rem; margin: 0 auto; padding: 0 1rem; }
-.wrap-bred { max-width: 78rem; margin: 0 auto; padding: 0 1rem; }
+.wrap { max-width: 44rem; margin: 0 auto; padding: 0 1rem; }
 
-header.topp {
+/* ===================================================== kartappen (start) */
+body.app { overflow: hidden; }
+
+.apptopp {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 800;
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--linje);
-  background: var(--bg-mjuk);
 }
+.apptopp .namn {
+  font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none;
+}
+.apptopp .hoger { margin-left: auto; display: flex; gap: 0.4rem; }
+
+#karta {
+  position: absolute; inset: 0; top: 0;
+  width: 100%; height: 100dvh; background: var(--bg-mjuk);
+}
+
+.ikonknapp {
+  font: inherit; font-size: 0.9rem; cursor: pointer;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--linje); border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+}
+.ikonknapp.primar { background: var(--lank); color: #fff; border-color: var(--lank); }
+
+#kartstatus {
+  position: absolute; top: 3.1rem; left: 0.75rem; z-index: 700;
+  max-width: min(30rem, calc(100vw - 1.5rem));
+  font-size: 0.85rem; color: var(--text-svag);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  padding: 0.2rem 0.5rem; border-radius: 6px;
+}
+#kartstatus:empty { display: none; }
+
+#lagerpanel {
+  position: absolute; top: 3.1rem; right: 0.75rem; z-index: 800;
+  background: var(--bg); border: 1px solid var(--linje); border-radius: 8px;
+  padding: 0.6rem 0.8rem; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  display: none;
+}
+#lagerpanel.oppen { display: block; }
+#lagerpanel label { display: flex; gap: 0.45rem; align-items: center; font-size: 0.92rem; }
+
+/* svarspanelen — ligger över kartan, inte bredvid */
+#panel {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 900;
+  max-height: 72dvh; overflow-y: auto;
+  background: var(--bg); border-top: 1px solid var(--linje);
+  border-radius: 14px 14px 0 0; box-shadow: var(--skugga);
+  transform: translateY(101%); transition: transform 0.22s ease;
+  padding: 0.5rem 1rem 1.5rem;
+}
+#panel.oppen { transform: translateY(0); }
+#panel .handtag {
+  width: 2.5rem; height: 4px; border-radius: 2px; background: var(--linje);
+  margin: 0.25rem auto 0.5rem;
+}
+#stangpanel {
+  position: absolute; top: 0.5rem; right: 0.75rem;
+  background: none; border: 0; font-size: 1.4rem; line-height: 1;
+  color: var(--text-svag); cursor: pointer; padding: 0.2rem 0.4rem;
+}
+#panel h2 { font-size: 1rem; margin: 1rem 0 0.3rem; }
+@media (min-width: 46rem) {
+  #panel {
+    left: auto; right: 1rem; bottom: 1rem; width: 26rem;
+    border-radius: 12px; max-height: calc(100dvh - 6rem);
+    transform: translateY(calc(100% + 2rem));
+  }
+}
+
+/* ===================================================== dokumentsidorna */
+header.topp { border-bottom: 1px solid var(--linje); background: var(--bg-mjuk); }
 header.topp .rad {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1rem;
   padding: 0.7rem 0;
 }
 header.topp .logotyp {
-  font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--text);
+  font-weight: 700; font-size: 1.1rem; text-decoration: none; color: var(--text);
 }
 header.topp nav { margin-left: auto; display: flex; gap: 1rem; flex-wrap: wrap; }
 header.topp nav a { font-size: 0.95rem; }
-.tagline { color: var(--text-svag); font-size: 0.95rem; width: 100%; }
 
-h1 { font-size: 1.75rem; line-height: 1.25; margin: 1.4rem 0 0.5rem; }
-h2 { font-size: 1.25rem; margin: 2rem 0 0.6rem; }
-h3 { font-size: 1.05rem; margin: 1.4rem 0 0.4rem; }
+h1 { font-size: 1.7rem; line-height: 1.25; margin: 1.4rem 0 0.3rem; }
+h2 { font-size: 1.2rem; margin: 2rem 0 0.5rem; }
+h3 { font-size: 1rem; margin: 1.5rem 0 0.3rem; font-weight: 600; }
+.meta { color: var(--text-svag); font-size: 0.95rem; margin: 0 0 1.2rem; }
 
-.meta { color: var(--text-svag); font-size: 0.95rem; margin: 0.2rem 0 1rem; }
-
-/* ---- svarslägen (Regel R2) ---- */
+/* svarslägen (Regel R2) */
 .svar {
-  border-left: 6px solid; border-radius: 4px;
-  padding: 0.9rem 1rem; margin: 1rem 0;
+  border-left: 5px solid; border-radius: 4px;
+  padding: 0.7rem 0.9rem; margin: 0.9rem 0;
 }
-.svar h2, .svar h3 { margin-top: 0; }
+.svar > strong { display: block; margin-bottom: 0.2rem; }
+.svar p:last-child, .svar ul:last-child { margin-bottom: 0; }
 .svar-reglerat { background: var(--reglerat-bg); border-color: var(--reglerat-kant); }
 .svar-ingen    { background: var(--ingen-bg);    border-color: var(--ingen-kant); }
 .svar-tacks-ej { background: var(--tacks-ej-bg); border-color: var(--tacks-ej-kant); }
-.svar-rubrik { font-weight: 700; font-size: 1.05rem; display: block; margin-bottom: 0.3rem; }
 
 .ocr-varning {
   background: var(--ocr-bg); border: 1px solid var(--ocr-kant);
-  border-radius: 4px; padding: 0.6rem 0.8rem; margin: 0.8rem 0; font-size: 0.95rem;
+  border-radius: 4px; padding: 0.5rem 0.75rem; margin: 0.8rem 0; font-size: 0.93rem;
 }
 
-/* ---- citat ---- */
-.citat {
-  margin: 0.9rem 0; padding: 0.7rem 0.9rem;
-  border-left: 4px solid var(--linje); background: var(--bg-mjuk);
-}
+/* citat — substansen på sidan */
+.citat { margin: 1.1rem 0; }
 .citat blockquote {
-  margin: 0; font-family: Georgia, "Times New Roman", serif;
+  margin: 0; padding: 0.15rem 0 0.15rem 0.9rem;
+  border-left: 3px solid var(--reglerat-kant);
+  font-family: Georgia, "Times New Roman", serif; font-size: 1.02rem;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.citat .kalla { font-size: 0.88rem; color: var(--text-svag); margin-top: 0.5rem; }
-.chip {
-  display: inline-block; font-size: 0.78rem; letter-spacing: 0.02em;
-  border: 1px solid var(--linje); border-radius: 999px;
-  padding: 0.1rem 0.6rem; margin-right: 0.4rem; color: var(--text-svag);
+.citat blockquote + blockquote { margin-top: 0.35rem; }
+.citat .kalla {
+  font-size: 0.85rem; color: var(--text-svag);
+  margin: 0.3rem 0 0 0.9rem;
 }
 
 .ansvar {
-  border: 1px solid var(--linje); border-radius: 4px;
-  padding: 0.8rem 1rem; margin: 1.5rem 0; font-size: 0.94rem;
-  color: var(--text-svag); background: var(--bg-mjuk);
+  border-top: 1px solid var(--linje);
+  padding-top: 0.8rem; margin: 2rem 0 0;
+  font-size: 0.88rem; color: var(--text-svag);
 }
 
-table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
-th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--linje); vertical-align: top; }
+table { border-collapse: collapse; width: 100%; font-size: 0.94rem; }
+th, td { text-align: left; padding: 0.35rem 0.55rem; border-bottom: 1px solid var(--linje); vertical-align: top; }
 th { font-weight: 600; }
 .tabell-scroll { overflow-x: auto; }
 
-/* ---- karta ---- */
-#karta { height: 68vh; min-height: 24rem; width: 100%; background: var(--bg-mjuk); }
-#minikarta { height: 15rem; width: 100%; background: var(--bg-mjuk); border: 1px solid var(--linje); }
-.kartverktyg {
-  display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center;
-  padding: 0.7rem 0; border-bottom: 1px solid var(--linje);
-}
-button.knapp {
-  font: inherit; font-size: 0.95rem; cursor: pointer;
-  background: var(--lank); color: #fff; border: 1px solid var(--lank);
-  border-radius: 4px; padding: 0.45rem 0.9rem;
-}
-button.knapp.sekundar { background: transparent; color: var(--lank); }
-button.knapp[disabled] { opacity: 0.55; cursor: default; }
-label.toggle { font-size: 0.95rem; display: inline-flex; gap: 0.35rem; align-items: center; }
+details { margin: 1rem 0; }
+summary { cursor: pointer; color: var(--lank); font-size: 0.93rem; }
 
-#positionssvar:empty { display: none; }
+#minikarta {
+  height: 14rem; width: 100%; background: var(--bg-mjuk);
+  border: 1px solid var(--linje); border-radius: 6px; margin: 0 0 1.2rem;
+}
+
+.lista-omraden { list-style: none; padding: 0; margin: 0.4rem 0; }
+.lista-omraden li { padding: 0.28rem 0; border-bottom: 1px solid var(--linje); }
+.avstand { color: var(--text-svag); font-size: 0.88rem; }
 .laddstatus { color: var(--text-svag); font-size: 0.9rem; }
-
-.lista-omraden { list-style: none; padding: 0; margin: 0.5rem 0; }
-.lista-omraden li { padding: 0.3rem 0; border-bottom: 1px solid var(--linje); }
-.avstand { color: var(--text-svag); font-size: 0.9rem; }
-
-footer.botten {
-  margin-top: 3rem; border-top: 1px solid var(--linje);
-  background: var(--bg-mjuk); padding: 1.2rem 0; font-size: 0.9rem;
-  color: var(--text-svag);
-}
-footer.botten a { color: var(--lank); }
 
 .dataalder {
   background: var(--bg-mjuk); border-bottom: 1px solid var(--linje);
-  font-size: 0.88rem; color: var(--text-svag); padding: 0.35rem 0;
+  font-size: 0.85rem; color: var(--text-svag); padding: 0.3rem 0;
+}
+
+footer.botten {
+  margin-top: 3rem; border-top: 1px solid var(--linje);
+  background: var(--bg-mjuk); padding: 1.2rem 0; font-size: 0.88rem;
+  color: var(--text-svag);
 }
 
 .leaflet-container { font: inherit; }
@@ -161,6 +219,5 @@ footer.botten a { color: var(--lank); }
 
 @media (max-width: 34rem) {
   body { font-size: 16px; }
-  #karta { height: 60vh; }
-  header.topp nav { margin-left: 0; width: 100%; }
+  h1 { font-size: 1.45rem; }
 }

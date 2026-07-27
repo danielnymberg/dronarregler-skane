@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Källor och täckning — Drönarkoll Skåne</title>
+<title>Källor och täckning — Drönarkoll</title>
 <meta name="description" content="Vilka rättskällor tjänsten täcker, varifrån data kommer, hämtningsdatum, licenser och kända luckor.">
 <link rel="canonical" href="https://dronarkoll-skane.pages.dev/kallor/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Källor och täckning — Drönarkoll Skåne">
+<meta property="og:title" content="Källor och täckning — Drönarkoll">
 <meta property="og:description" content="Vilka rättskällor tjänsten täcker, varifrån data kommer, hämtningsdatum, licenser och kända luckor.">
 <meta property="og:url" content="https://dronarkoll-skane.pages.dev/kallor/">
-<meta property="og:site_name" content="Drönarkoll Skåne">
+<meta property="og:site_name" content="Drönarkoll">
 <meta property="og:locale" content="sv_SE">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/assets/style.css">
@@ -18,7 +18,7 @@
 <body>
 <header class="topp">
   <div class="wrap rad">
-    <a class="logotyp" href="/">Drönarkoll Skåne</a>
+    <a class="logotyp" href="/">Drönarkoll</a>
     <nav>
       <a href="/">Karta</a>
       <a href="/omraden/">Alla områden</a>
@@ -33,7 +33,7 @@
 <h1>Källor och täckning</h1>
 <p>Ett lager per rättskälla. Lagren blandas aldrig. Nedan står vad varje lager innehåller, varifrån det kommer, vilken licens som gäller, när det hämtades och vilka luckor som är kända.</p>
 <h2>Lager i tjänstens egen databas</h2>
-<div class="tabell-scroll"><table><thead><tr><th>Lager</th><th>Antal i Skåne</th><th>Varav med verifierade citat</th><th>Hämtat</th><th>Licens</th></tr></thead><tbody>
+<div class="tabell-scroll"><table><thead><tr><th>Lager</th><th>Antal i Sverige</th><th>Varav med verifierade citat</th><th>Hämtat</th><th>Licens</th></tr></thead><tbody>
 <tr><td>Nationalparker</td><td>3</td><td>3</td><td>2026-07-26</td><td>CC0</td></tr>
 <tr><td>Naturreservat (statligt beslutade)</td><td>323</td><td>231</td><td>2026-07-26</td><td>CC0</td></tr>
 <tr><td>Naturreservat (kommunalt beslutade)</td><td>69</td><td>53</td><td>2026-07-26</td><td>CC0</td></tr>
@@ -46,10 +46,10 @@
 <tr><td>Landskapsbildsskyddsområden</td><td>40</td><td>0</td><td>2026-07-26</td><td>CC0</td></tr>
 <tr><td>Övriga biotopskyddsområden</td><td>13</td><td>2</td><td>2026-07-26</td><td>CC0</td></tr>
 </tbody></table></div>
-<div class="svar svar-tacks-ej"><span class="svar-rubrik">Denna källa täcks inte här</span><p>Följande lager ingår i tjänstens scope men Naturvårdsverkets register returnerar inga objekt av den typen i Skåne län vid hämtningen 2026-07-26: <strong>Interimistiska förbud</strong>. En tom kategori är ett besked om registret, inte ett besked om att inget är reglerat.</p></div>
+<div class="svar svar-tacks-ej"><span class="svar-rubrik">Denna källa täcks inte här</span><p>Följande lager ingår i tjänstens scope men Naturvårdsverkets register returnerar inga objekt av den typen i Sverige vid hämtningen 2026-07-26: <strong>Interimistiska förbud</strong>. En tom kategori är ett besked om registret, inte ett besked om att inget är reglerat.</p></div>
 <h2>Kända luckor</h2><ul>
-<li>Naturvårdsverkets punktlager <em>SkyddadePunkter</em> returnerar noll objekt för Skåne län (2026-07-26). Naturminnen i länet finns i ytlagret i stället.</li>
-<li>Tillträdesförbud har enligt Naturvårdsverket kända ajourföringsluckor i Södermanlands, Örebro, Gotlands och Stockholms län. Skåne berörs inte av den uppgiften, och lagret returnerar objekt för Skåne — se tabellen ovan för antalet.</li>
+<li>Naturvårdsverkets punktlager <em>SkyddadePunkter</em> returnerar noll objekt för Sverige (2026-07-26). Naturminnen finns i ytlagret i stället.</li>
+<li>Tillträdesförbud har enligt Naturvårdsverket kända ajourföringsluckor i Södermanlands, Örebro, Gotlands och Stockholms län. Antalet objekt per lager står i tabellen ovan.</li>
 <li>Tjänsten läser bara dokument vars filnamn pekar ut dem som beslut, föreskrifter, förordnanden, kungörelser eller ändringsbeslut. Skötselplaner, kartbilagor och visningsbilder läses inte. Vilka dokument som hoppats över för ett enskilt område står på områdets sida.</li>
 <li>Ett område kan ha flera beslut där ett senare ändrat ett tidigare. Tjänsten avgör inte vilken lydelse som gäller i dag.</li>
 <li>Luftrum — flygplatser, restriktionsområden, NOTAM och geografiska UAS-zoner — ingår inte i tjänstens databas. De visas enbart som LFV:s eget rasterlager.</li>
@@ -70,12 +70,12 @@
 <p>Verifieringen är en ordagrann strängmatchning mot källdokumentets text efter dokumenterad normalisering. Ingen språkmodell är inblandad i verifieringen och ingen likhetströskel används — ett citat som inte förekommer ordagrant kastas.</p>
 <p>Fullständiga maskinläsbara utfall: <a href="/data/verification-report.json">verification-report.json</a>, <a href="/data/manifest.json">manifest.json</a>.</p>
 <h2>Ladda ned databasen</h2>
-<p>Tjänstens databas publiceras under CC0. <a href="/data/areas.geojson">areas.geojson</a> (förenklad visningsgeometri), <a href="/data/bbox-index.json">bbox-index.json</a>, per-områdesfiler under <code>/data/omraden/{nvrid}.json</code> med oförenklad originalgeometri, samt <a href="/data/LICENSE">LICENSE</a> och <a href="/data/README.md">schemabeskrivning</a>.</p>
+<p>Tjänstens databas publiceras under CC0. <a href="/data/oversikt.json">oversikt.json</a> (förenklad visningsgeometri), rutnätsfiler under <code>/data/rutor/</code>, oförenklad originalgeometri under <code>/data/geom/</code>, samt <a href="/data/LICENSE">LICENSE</a> och <a href="/data/README.md">schemabeskrivning</a>. Fullständiga per-områdesposter — med citat, dokumentlänkar och proveniens i en fil per område — finns i kodförrådet under <a href="https://github.com/danielnymberg/dronarregler-skane/tree/main/data/omraden">data/omraden/</a>.</p>
 <div class="ansvar">Den här tjänsten sammanställer och citerar offentliga myndighetsbeslut — den tolkar dem inte och ger inga klartecken. Citaten är maskinellt verifierade mot källdokumenten, men fel kan förekomma och regler kan ha ändrats efter hämtningsdatumet. Luftrumsregler (flygplatser, restriktionsområden, NOTAM, geografiska UAS-zoner) omfattas inte av tjänstens databas — kontrollera alltid LFV:s drönarkarta före flygning. Som fjärrpilot är du ensam ansvarig för att din flygning följer gällande regler. Läs alltid det länkade originalbeslutet.</div>
 </main>
 <footer class="botten">
   <div class="wrap">
-    <p>Drönarkoll Skåne är gratis och reklamfri. Ingen spårning, inga analysverktyg,
+    <p>Drönarkoll är gratis och reklamfri. Ingen spårning, inga analysverktyg,
     inga cookies utöver tekniskt nödvändiga.</p>
     <p>Områdesdata: Naturvårdsverkets naturvårdsregister (CC0).
     Luftrumslagret: © LFV (CC BY-NC-ND 4.0) — visas som raster direkt

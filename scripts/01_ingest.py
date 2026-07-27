@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Steg 1 — Ingest.
 
-Hämtar samtliga skyddade områden i Skåne län ur Naturvårdsverkets
+Hämtar samtliga skyddade områden inom vald omfattning (config.json:
+lan_kort = null ger hela landet) ur Naturvårdsverkets
 naturvårdsregister (WFS, CC0) samt detaljposter ur Kartverktyget Skyddad natur
 (REST) med beslutsdokumentlänkar och föreskriftsområden (säsongsdata).
 
@@ -19,6 +20,7 @@ import urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.common import (CACHE, CONFIG, DATA, ensure_dir, fetch, log, read_json,
                         sha256_bytes, today, write_json)
+from lib.geom import esri_samling_till_geojson, ring_area_m2
 
 WFS = "https://geodata.naturvardsverket.se/naturvardsregistret/wfs"
 SKNAT = "https://skyddadnatur.naturvardsverket.se"
@@ -45,6 +47,15 @@ SKYDDSTYPER = {
 # Lager som saknar egen SKYDDSTYP i NVR men som härleds ur beslutsmyndighet.
 HARLEDDA_LAGER = {"naturreservat-kommunalt": True}
 
+FES = 'xmlns:fes="http://www.opengis.net/fes/2.0"'
+# Serverns hårda tak är 500 objekt per svar, men taket är inte det enda
+# problemet: ett svar med några hundra fjällreservat blir tiotals megabyte och
+# kommer tillbaka avhugget mitt i JSON-strukturen. Vi håller därför våra egna
+# celler under serverns tak, och delar dessutom upp varje cell som ändå kommer
+# tillbaka avhuggen (se CellenAvhuggen). Trunkeringen är det som styr, inte en
+# gissad storleksgräns.
+TAK = 400
+
 LAN_FILTER = (
     '<fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="\\">'
     "<fes:ValueReference>LAN</fes:ValueReference>"
@@ -52,15 +63,31 @@ LAN_FILTER = (
 )
 TYP_FILTER = ("<fes:PropertyIsEqualTo><fes:ValueReference>SKYDDSTYP</fes:ValueReference>"
               "<fes:Literal>{typ}</fes:Literal></fes:PropertyIsEqualTo>")
-FES = 'xmlns:fes="http://www.opengis.net/fes/2.0"'
+# Datumliteralen måste vara ett rent datum. Med tidsstämpel ("1975-12-31T00:00:00Z")
+# svarar tjänsten HTTP 500.
+DATUM_FILTER = (
+    "<fes:PropertyIsBetween><fes:ValueReference>URSPR_BESLUTSDATUM</fes:ValueReference>"
+    "<fes:LowerBoundary><fes:Literal>{fran}-01-01</fes:Literal></fes:LowerBoundary>"
+    "<fes:UpperBoundary><fes:Literal>{till}-12-31</fes:Literal></fes:UpperBoundary>"
+    "</fes:PropertyIsBetween>")
+
+# Länen används som andra partitionsnivå när en skyddstyp ensam spränger taket.
+LAN_LISTA = [
+    "Norrbotten", "Västerbotten", "Jämtland", "Västernorrland", "Gävleborg",
+    "Dalarna", "Värmland", "Örebro", "Västmanland", "Uppsala", "Stockholm",
+    "Södermanland", "Östergötland", "Jönköping", "Kronoberg", "Kalmar",
+    "Gotland", "Blekinge", "Skåne", "Halland", "Västra Götaland",
+]
 
 
-def build_filter(skyddstyp=None):
-    lan = LAN_FILTER.format(lan=CONFIG["lan_kort"])
-    if skyddstyp is None:
-        return f"<fes:Filter {FES}>{lan}</fes:Filter>"
-    typ = TYP_FILTER.format(typ=skyddstyp)
-    return f"<fes:Filter {FES}><fes:And>{lan}{typ}</fes:And></fes:Filter>"
+def build_filter(predikat):
+    """Sätt ihop ett FES-filter av noll eller flera predikat."""
+    predikat = [p for p in predikat if p]
+    if not predikat:
+        return None
+    if len(predikat) == 1:
+        return f"<fes:Filter {FES}>{predikat[0]}</fes:Filter>"
+    return f"<fes:Filter {FES}><fes:And>{''.join(predikat)}</fes:And></fes:Filter>"
 
 
 def wfs_url(typename, filt, **extra):
@@ -69,7 +96,13 @@ def wfs_url(typename, filt, **extra):
         "version": "2.0.0",
         "request": "GetFeature",
         "typeNames": f"Naturvardsregistret_WFS:{typename}",
-        "outputFormat": "GEOJSON",
+        # ESRIGEOJSON, inte GEOJSON. Tjänstens GeoJSON-utskrift är trasig på två
+        # sätt: den kapar svaret mitt i JSON-strukturen för celler med stora
+        # geometrier, och den plattar ihop flerdelade områden till EN polygon där
+        # de övriga delarna hamnar som "hål". Naturreservatet Verkeån blev då
+        # 374 ha i stället för registrets egna 1 424 ha. ESRI-formatet levererar
+        # hela svar och separata ringar; konverteringen sker i lib/geom.py.
+        "outputFormat": "ESRIGEOJSON",
         "srsName": "urn:ogc:def:crs:EPSG::4326",
         "filter": filt,
     }
@@ -89,40 +122,142 @@ def wfs_hits(typename, filt):
     return int(m.group(1))
 
 
-def fetch_layer(typename, out_name):
-    """Hämtar ett WFS-lager.
+class CellenAvhuggen(Exception):
+    """Svaret kom tillbaka trunkerat — cellen måste delas ytterligare."""
+
+
+def hamta_direkt(typename, filt, etikett, forvantat):
+    """Hämtar en cell och kräver komplett, parsbar GeoJSON med rätt antal."""
+    raw = fetch(wfs_url(typename, filt, count=500),
+                min_interval=CONFIG["throttle_docs_s"], timeout=900)
+    try:
+        doc = json.loads(raw.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise CellenAvhuggen(
+            f"{etikett}: svaret avhugget efter {len(raw)} byte ({exc})") from exc
+    got = esri_samling_till_geojson(doc)["features"]
+    if len(got) != forvantat:
+        raise CellenAvhuggen(
+            f"{etikett}: hits sa {forvantat} men GetFeature gav {len(got)}")
+    return got
+
+
+def hamta_cell(typename, predikat, etikett, djup=0):
+    """Hämtar en partition, och delar upp den vidare om den spränger taket.
 
     Tjänsten kapar hårt vid 500 objekt och ignorerar startIndex, så vanlig
-    WFS-paginering går inte att använda. I stället partitioneras uttaget per
-    SKYDDSTYP (varje delmängd ligger under taket) och resultatet stäms av mot
-    resultType=hits för hela länet. Stämmer inte summan avbryts bygget hellre
-    än att en tyst lucka slinker igenom till kartan.
+    WFS-paginering går inte att använda. I stället partitioneras uttaget:
+
+      nivå 1  SKYDDSTYP
+      nivå 2  LÄN            — behövs t.ex. för naturreservat (6 027 i landet)
+      nivå 3  BESLUTSDATUM   — halveras rekursivt tills cellen ryms
+
+    Nivå 3 är en bisektion på datum i stället för en kommunlista, eftersom den
+    alltid terminerar och inte kräver något externt register.
+
+    Varje cell stäms av mot resultType=hits. Stämmer inte antalet avbryts
+    bygget hellre än att en tyst lucka slinker igenom till kartan.
     """
-    total = wfs_hits(typename, build_filter())
-    log(f"  {typename}: {total} objekt i länet enligt resultType=hits")
-    features, per_typ = [], {}
-    for skyddstyp in SKYDDSTYPER:
-        filt = build_filter(skyddstyp)
+    filt = build_filter(predikat)
+    n = wfs_hits(typename, filt)
+    if n == 0:
+        return [], n
+    if n <= TAK:
+        try:
+            return hamta_direkt(typename, filt, etikett, n), n
+        except CellenAvhuggen as exc:
+            log(f"    {exc} — delar cellen vidare")
+
+    # Cellen är för stor — dela upp den.
+    if djup == 0:
+        log(f"    {etikett}: {n} objekt — över taket, delar per län")
+        ut, summa = [], 0
+        for lan in LAN_LISTA:
+            f, k = hamta_cell(typename,
+                              predikat + [LAN_FILTER.format(lan=lan)],
+                              f"{etikett}/{lan}", djup + 1)
+            ut.extend(f)
+            summa += k
+        if summa == n:
+            return ut, n
+        # Länsuppdelningen täcker inte allt. Det är inte ett datafel utan en
+        # egenskap hos registret: 414 av de första 500 naturminnena har tomt
+        # LAN-fält och fångas därför inte av något länsfilter. Fall tillbaka på
+        # datumbisektion, som inte bygger på något attribut som kan vara tomt.
+        log(f"    {etikett}: länsuppdelningen gav {summa} av {n} — "
+            "faller tillbaka på datumuppdelning för hela mängden")
+        return bisektera_datum(typename, predikat, etikett, n)
+
+    # Nivå 3: bisektion på beslutsdatum.
+    return bisektera_datum(typename, predikat, etikett, n)
+
+
+def bisektera_datum(typename, predikat, etikett, forvantat, fran=1850, till=2100):
+    """Halvera beslutsdatumintervallet tills varje del ryms under taket.
+
+    Returnerar (features, antal). Summan stäms av mot `forvantat` av anroparen:
+    skulle objekt sakna beslutsdatum, och därmed falla utanför varje intervall,
+    upptäcks det som en avvikelse i stället för att bli en tyst lucka.
+    """
+    if till - fran < 1:
+        # Alla objekt i cellen delar samma beslutsdatum — vanligt när ett enda
+        # beslut bildat många små områden, t.ex. 124 fågelskyddsområden i
+        # Blekinge från 1985. Datum kan inte dela dem, men serverns tak är 500
+        # och en sådan cell är oftast liten i byte. Pröva ett direktuttag.
+        filt = build_filter(predikat)
+        try:
+            return hamta_direkt(typename, filt, etikett, forvantat), forvantat
+        except CellenAvhuggen as exc:
+            raise RuntimeError(
+                f"{etikett}: {forvantat} objekt delar beslutsdatum {fran} och "
+                f"går varken att dela eller hämta i ett stycke ({exc})") from exc
+    mitt = (fran + till) // 2
+    ut = []
+    for lo, hi in ((fran, mitt), (mitt + 1, till)):
+        pred = predikat + [DATUM_FILTER.format(fran=lo, till=hi)]
+        filt = build_filter(pred)
         n = wfs_hits(typename, filt)
-        per_typ[skyddstyp] = n
         if n == 0:
             continue
-        if n >= 500:
-            raise RuntimeError(
-                f"{typename}/{skyddstyp} har {n} objekt — över serverns tak på 500. "
-                "Partitioneringen måste delas upp ytterligare (t.ex. per kommun).")
-        raw = fetch(wfs_url(typename, filt, count=500),
-                    min_interval=CONFIG["throttle_docs_s"], timeout=300)
-        got = json.loads(raw.decode("utf-8")).get("features", [])
-        if len(got) != n:
-            raise RuntimeError(
-                f"{typename}/{skyddstyp}: hits sa {n} men GetFeature gav {len(got)}")
-        features.extend(got)
-        log(f"    {skyddstyp}: {len(got)}")
+        hamtad = None
+        if n <= TAK:
+            try:
+                hamtad = hamta_direkt(typename, filt, f"{etikett} {lo}–{hi}", n)
+            except CellenAvhuggen as exc:
+                log(f"    {exc} — delar vidare")
+        if hamtad is not None:
+            ut.extend(hamtad)
+        else:
+            djupare, _ = bisektera_datum(typename, pred, f"{etikett} {lo}–{hi}",
+                                         n, lo, hi)
+            ut.extend(djupare)
+    if len(ut) != forvantat:
+        raise RuntimeError(
+            f"{etikett}: datumuppdelningen gav {len(ut)} av {forvantat} objekt — "
+            "sannolikt objekt utan URSPR_BESLUTSDATUM")
+    return ut, len(ut)
+
+
+def fetch_layer(typename, out_name):
+    """Hämtar ett WFS-lager, partitionerat och avstämt mot resultType=hits."""
+    omfattning = CONFIG.get("lan_kort") or None
+    lanpred = [LAN_FILTER.format(lan=omfattning)] if omfattning else []
+    total = wfs_hits(typename, build_filter(lanpred))
+    var = omfattning or "hela landet"
+    log(f"  {typename}: {total} objekt i {var} enligt resultType=hits")
+    features, per_typ = [], {}
+    for skyddstyp in SKYDDSTYPER:
+        got, n = hamta_cell(typename,
+                            lanpred + [TYP_FILTER.format(typ=skyddstyp)],
+                            f"{typename}/{skyddstyp}")
+        per_typ[skyddstyp] = n
+        if n:
+            features.extend(got)
+            log(f"    {skyddstyp}: {len(got)}")
 
     utanfor = total - sum(per_typ.values())
     if utanfor:
-        log(f"  OBS: {utanfor} objekt i länet har en SKYDDSTYP utanför scope-listan")
+        log(f"  OBS: {utanfor} objekt har en SKYDDSTYP utanför scope-listan")
     payload = {"type": "FeatureCollection", "features": features}
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     path = os.path.join(CACHE, "raw", out_name)

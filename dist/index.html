@@ -2,58 +2,49 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Drönarkoll Skåne — Vad säger föreskrifterna i skyddad natur?</title>
-<meta name="description" content="Karta över skyddade naturområden i Skåne län med ordagranna citat ur myndigheternas beslutsföreskrifter om drönare och luftfartyg. Gratis, reklamfri, utan spårning.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Drönarkoll — Vad säger föreskrifterna i skyddad natur?</title>
+<meta name="description" content="Karta över skyddade naturområden i Sverige med ordagranna citat ur myndigheternas beslutsföreskrifter om drönare. Gratis, reklamfri, utan spårning.">
 <link rel="canonical" href="https://dronarkoll-skane.pages.dev/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Drönarkoll Skåne — Vad säger föreskrifterna i skyddad natur?">
-<meta property="og:description" content="Karta över skyddade naturområden i Skåne län med ordagranna citat ur myndigheternas beslutsföreskrifter om drönare och luftfartyg. Gratis, reklamfri, utan spårning.">
+<meta property="og:title" content="Drönarkoll">
 <meta property="og:url" content="https://dronarkoll-skane.pages.dev/">
-<meta property="og:site_name" content="Drönarkoll Skåne">
 <meta property="og:locale" content="sv_SE">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/assets/style.css">
+<script>window.DK_LFV={"url": "https://daim.lfv.se/geoserver/wms", "attribution": "\u00a9 LFV (CC BY-NC-ND 4.0)", "dronechart": "https://dronechart.lfv.se/"};
+window.DK_ANSVARSTEXT="Den h\u00e4r tj\u00e4nsten sammanst\u00e4ller och citerar offentliga myndighetsbeslut \u2014 den tolkar dem inte och ger inga klartecken. Citaten \u00e4r maskinellt verifierade mot k\u00e4lldokumenten, men fel kan f\u00f6rekomma och regler kan ha \u00e4ndrats efter h\u00e4mtningsdatumet. Luftrumsregler (flygplatser, restriktionsomr\u00e5den, NOTAM, geografiska UAS-zoner) omfattas inte av tj\u00e4nstens databas \u2014 kontrollera alltid LFV:s dr\u00f6narkarta f\u00f6re flygning. Som fj\u00e4rrpilot \u00e4r du ensam ansvarig f\u00f6r att din flygning f\u00f6ljer g\u00e4llande regler. L\u00e4s alltid det l\u00e4nkade originalbeslutet.";</script>
 <script defer src="/vendor/leaflet/leaflet.js"></script>
 <script defer src="/assets/app.js"></script>
-<script>window.DK_LFV={"url": "https://daim.lfv.se/geoserver/wms", "attribution": "\u00a9 LFV (CC BY-NC-ND 4.0)", "dronechart": "https://dronechart.lfv.se/"};window.DK_ANSVARSTEXT="Den h\u00e4r tj\u00e4nsten sammanst\u00e4ller och citerar offentliga myndighetsbeslut \u2014 den tolkar dem inte och ger inga klartecken. Citaten \u00e4r maskinellt verifierade mot k\u00e4lldokumenten, men fel kan f\u00f6rekomma och regler kan ha \u00e4ndrats efter h\u00e4mtningsdatumet. Luftrumsregler (flygplatser, restriktionsomr\u00e5den, NOTAM, geografiska UAS-zoner) omfattas inte av tj\u00e4nstens databas \u2014 kontrollera alltid LFV:s dr\u00f6narkarta f\u00f6re flygning. Som fj\u00e4rrpilot \u00e4r du ensam ansvarig f\u00f6r att din flygning f\u00f6ljer g\u00e4llande regler. L\u00e4s alltid det l\u00e4nkade originalbeslutet.";</script>
 </head>
-<body>
-<header class="topp">
-  <div class="wrap-bred rad">
-    <a class="logotyp" href="/">Drönarkoll Skåne</a>
-    <nav>
-      <a href="/">Karta</a>
-      <a href="/omraden/">Alla områden</a>
-      <a href="/kallor/">Källor och täckning</a>
-      <a href="/om/">Om tjänsten</a>
-    </nav>
-    <span class="tagline">Vad säger föreskrifterna i skyddad natur?</span>
+<body class="app">
+<div id="karta"></div>
+<header class="apptopp">
+  <a class="namn" href="/om/">Drönarkoll</a>
+  <div class="hoger">
+    <button class="ikonknapp primar" id="positionsknapp">Var står jag?</button>
+    <button class="ikonknapp" id="lagerknapp" aria-label="Lager">Lager</button>
   </div>
 </header>
-<div class="dataalder"><div class="wrap-bred">Data senast uppdaterad: <strong>2026-07-26</strong></div></div>
-<main class="wrap-bred">
-<h1>Drönarkoll Skåne</h1>
-<p>Kartan visar skyddade naturområden i Skåne län vars myndighetsbeslut kan innehålla föreskrifter som berör drönarflygning. Tjänsten citerar föreskrifterna ordagrant och länkar till originalbeslutet. Den tolkar dem inte och ger inga klartecken.</p>
-<div class="kartverktyg"><button class="knapp" id="positionsknapp" disabled>Kontrollera min position</button><label class="toggle"><input type="checkbox" id="lfvtoggle" checked> Luftrumslager från LFV</label><label class="toggle"><input type="checkbox" id="extralager"> Vattenskydd, landskapsbildsskydd och biotopskydd</label><span class="laddstatus" id="laddstatus">Laddar områdesdata …</span></div>
-<div id="karta"></div>
-<div id="positionssvar"></div>
-<div class="svar svar-tacks-ej"><span class="svar-rubrik">Denna källa täcks inte här</span><p>Luftrum (flygplatser, restriktionsområden, NOTAM) visas i LFV-lagret och på LFV:s drönarkarta — kontrollera alltid det separat: <a href="https://dronechart.lfv.se/" rel="noopener">https://dronechart.lfv.se/</a>.</p></div>
-<div class="ansvar">Den här tjänsten sammanställer och citerar offentliga myndighetsbeslut — den tolkar dem inte och ger inga klartecken. Citaten är maskinellt verifierade mot källdokumenten, men fel kan förekomma och regler kan ha ändrats efter hämtningsdatumet. Luftrumsregler (flygplatser, restriktionsområden, NOTAM, geografiska UAS-zoner) omfattas inte av tjänstens databas — kontrollera alltid LFV:s drönarkarta före flygning. Som fjärrpilot är du ensam ansvarig för att din flygning följer gällande regler. Läs alltid det länkade originalbeslutet.</div>
-<h2>Vad tjänsten gör</h2><ul><li>Visar myndigheternas egna områdesgränser — inga egenritade buffertzoner, cirklar eller uppskattade zoner.</li><li>Citerar föreskrifter ordagrant med paragraf, sidnummer och länk till originaldokumentet.</li><li>Varje citat är maskinellt kontrollerat mot källdokumentets text. Citat som inte matchar kastas — då visas bara länken.</li><li>Svarar alltid i ett av tre lägen: <em>reglerat område — läs beslutet</em>, <em>ingen restriktion hittad i de källor tjänsten täcker</em>, eller <em>denna källa täcks inte här</em>.</li></ul>
-<p>Databasen omfattar 640 områden i Skåne län, varav 442 i kärnlagret. Se <a href="/kallor/">källor och täckning</a> för vad som ingår och vilka luckor som är kända.</p>
-</main>
-<footer class="botten">
-  <div class="wrap-bred">
-    <p>Drönarkoll Skåne är gratis och reklamfri. Ingen spårning, inga analysverktyg,
-    inga cookies utöver tekniskt nödvändiga.</p>
-    <p>Områdesdata: Naturvårdsverkets naturvårdsregister (CC0).
-    Luftrumslagret: © LFV (CC BY-NC-ND 4.0) — visas som raster direkt
-    från LFV:s server. Tjänstens egen databas publiceras under CC0.</p>
-    <p><a href="https://github.com/danielnymberg/dronarregler-skane">Källkod och databas</a> ·
-    <a href="/kallor/">Källor och täckning</a> ·
-    <a href="https://github.com/danielnymberg/dronarregler-skane/issues/new">Rapportera fel</a></p>
+<div id="kartstatus"></div>
+<div id="lagerpanel">
+  <label><input type="checkbox" id="lfvtoggle" checked> Luftrum (LFV)</label>
+  <p style="margin:.5rem 0 0;font-size:.82rem;color:var(--text-svag)">
+    Data hämtad 2026-07-26<br>
+    <a href="/omraden/">Alla områden</a> · <a href="/kallor/">Källor</a> ·
+    <a href="/om/">Om tjänsten</a></p>
+</div>
+<section id="panel" aria-live="polite">
+  <div class="handtag"></div>
+  <button id="stangpanel" aria-label="Stäng">×</button>
+  <div id="svar"></div>
+</section>
+<noscript>
+  <div class="wrap">
+    <h1>Drönarkoll</h1>
+    <p>Kartan kräver JavaScript. Alla områden finns som vanliga sidor:
+    <a href="/omraden/">registret över samtliga områden</a>.</p>
   </div>
-</footer>
+</noscript>
 </body>
 </html>

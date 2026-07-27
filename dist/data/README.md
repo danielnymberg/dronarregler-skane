@@ -105,13 +105,13 @@ ordning. Substansen är citatet.
      äter en orimlig andel av ett litet, avlångt objekt.
 
   Vid detta bygge: punktantalet gick från 166672 till
-  103279, 781 ringar behölls
+  98810, 660 ringar behölls
   oförenklade, största ytminskning för ett enskilt objekt var
   1.996 % (NVRID
   2043746), och hela datamängdens yta
-  gick från 2522304329 till
-  2521088299 m².
-  Använd tolerans per objekt: {'15 m': 579, '5 m': 50, '1.5 m': 6, 'oförenklad': 5}.
+  gick från 2649382693 till
+  2648050020 m².
+  Använd tolerans per objekt: {'15 m': 582, '1.5 m': 7, '5 m': 48, 'oförenklad': 3}.
 - Inga buffertar, cirklar eller uppskattade zoner förekommer någonstans i
   databasen.
 

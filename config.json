@@ -1,13 +1,13 @@
 {
-  "site_name": "Drönarkoll Skåne",
+  "site_name": "Drönarkoll",
   "site_tagline": "Vad säger föreskrifterna i skyddad natur?",
   "base_url": "https://dronarkoll-skane.pages.dev",
   "_base_url_TODO": "Satt till Cloudflare Pages standarddoman 2026-07-27. Byt till den skarpa domanen nar den ar bestamd - detta ar den ENDA plats som behover andras for canonical-URL:er, sitemap och OG-metadata. Kor sedan: make site && make test-snabb && wrangler pages deploy dist",
   "repo_url": "https://github.com/danielnymberg/dronarregler-skane",
   "issue_url": "https://github.com/danielnymberg/dronarregler-skane/issues/new",
   "contact_mode": "github_issues",
-  "lan": "Skåne Län",
-  "lan_kort": "Skåne",
+  "lan": "Sverige",
+  "lan_kort": null,
   "user_agent": "dronarregler-skane-bot/0.1 (+https://github.com/danielnymberg/dronarregler-skane)",
   "throttle_docs_s": 1.0,
   "throttle_api_s": 0.5,
@@ -16,5 +16,23 @@
     "url": "https://daim.lfv.se/geoserver/wms",
     "attribution": "© LFV (CC BY-NC-ND 4.0)",
     "dronechart": "https://dronechart.lfv.se/"
-  }
+  },
+  "_omfattning_kommentar": "lan_kort = null ger rikstackande uttag. Satt till t.ex. 'Skane' for att bygga ett enskilt lan.",
+  "zoomband": [
+    {
+      "id": "oversikt",
+      "anvands_under_zoom": 9,
+      "tolerans_m": 400,
+      "min_area_ha": 50,
+      "kommentar": "en enda fil for hela landet, laddas nar man ar utzoomad"
+    },
+    {
+      "id": "detalj",
+      "anvands_fran_zoom": 9,
+      "tolerans_m": 15,
+      "min_area_ha": 0,
+      "kommentar": "rutnatsfiler, bara de rutor som syns laddas"
+    }
+  ],
+  "rutnat_grader": 1.0
 }

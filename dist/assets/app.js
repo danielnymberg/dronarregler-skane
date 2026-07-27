@@ -1,19 +1,25 @@
-/* Drönarkoll Skåne — kartklient.
+/* Drönarkoll — kartklient.
+ *
+ * Startsidan är en kartapp: kartan fyller skärmen, positionen hämtas direkt,
+ * och svaret kommer upp som en panel över kartan.
  *
  * Regel R2: exakt tre svarslägen, aldrig ett fjärde. Inget svar formuleras
  * som tillåtelse.
  * Regel R3: all geometri kommer ur data/ som i sin tur kommer ur
  * myndighets-API. Klienten ritar inga egna buffertar eller cirklar.
- * Punkt-i-polygon körs alltid mot originalgeometrin i data/omraden/{nvrid}.json,
- * aldrig mot den förenklade visningsgeometrin.
+ * Punkt-i-polygon körs alltid mot ORIGINALGEOMETRIN i data/geom/{ruta}.json,
+ * aldrig mot den förenklade visningsgeometrin i data/rutor/.
  * Regel R5: LFV-lagret hämtas som ostylat raster direkt från LFV:s server.
  */
 (function () {
   "use strict";
 
   var DATA = window.DK_DATA_BAS || "/data";
-  var LFV = window.DK_LFV;
+  var LFV = window.DK_LFV || {};
   var LFV_LAGER = "mais:CTR,mais:TIZ,mais:TIA,mais:ATZ,mais:RSTA,mais:DNGA";
+  var VISNING_RUTA = 1.0;        // grader per visningsruta
+  var GEOM_RUTA = 0.25;          // grader per geometri-/bbox-ruta
+  var DETALJ_FRAN_ZOOM = 9;
 
   var FARG = {
     nationalpark: "#1b6b3a",
@@ -28,15 +34,25 @@
     landskapsbildsskydd: "#7a6a2f",
     biotopskydd: "#4c6b2f"
   };
+  function fargFor(l) { return FARG[l] || "#444"; }
 
-  function fargFor(lager) { return FARG[lager] || "#444"; }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function hamta(url) {
+    return fetch(url, { credentials: "omit" }).then(function (r) {
+      if (!r.ok) throw new Error(url + " svarade " + r.status);
+      return r.json();
+    });
+  }
 
-  /* ---------------------------------------------------- punkt-i-polygon */
+  /* ------------------------------------------------ punkt-i-polygon m.m. */
   function punktIRing(x, y, ring) {
     var inne = false;
     for (var i = 0; i < ring.length - 1; i++) {
-      var x1 = ring[i][0], y1 = ring[i][1];
-      var x2 = ring[i + 1][0], y2 = ring[i + 1][1];
+      var x1 = ring[i][0], y1 = ring[i][1], x2 = ring[i + 1][0], y2 = ring[i + 1][1];
       if ((y1 > y) !== (y2 > y)) {
         var xs = (x2 - x1) * (y - y1) / (y2 - y1) + x1;
         if (x === xs) return true;
@@ -45,24 +61,20 @@
     }
     return inne;
   }
-
   function punktIGeometri(lon, lat, geom) {
     if (!geom) return false;
     var polys = geom.type === "MultiPolygon" ? geom.coordinates : [geom.coordinates];
     for (var p = 0; p < polys.length; p++) {
       var rings = polys[p];
-      if (!rings.length) continue;
-      if (punktIRing(lon, lat, rings[0])) {
-        var iHal = false;
-        for (var h = 1; h < rings.length; h++) {
-          if (punktIRing(lon, lat, rings[h])) { iHal = true; break; }
-        }
-        if (!iHal) return true;
+      if (!rings.length || !punktIRing(lon, lat, rings[0])) continue;
+      var iHal = false;
+      for (var h = 1; h < rings.length; h++) {
+        if (punktIRing(lon, lat, rings[h])) { iHal = true; break; }
       }
+      if (!iHal) return true;
     }
     return false;
   }
-
   function avstandM(lon1, lat1, lon2, lat2) {
     var R = 6371008.8, rad = Math.PI / 180;
     var p1 = lat1 * rad, p2 = lat2 * rad;
@@ -71,7 +83,6 @@
             Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
     return 2 * R * Math.asin(Math.sqrt(a));
   }
-
   function narmasteHorn(lon, lat, geom) {
     var basta = Infinity;
     (function gar(c) {
@@ -82,227 +93,305 @@
     })(geom.coordinates);
     return basta;
   }
-
   function formatAvstand(m) {
     if (m < 950) return Math.round(m / 10) * 10 + " m";
     return (m / 1000).toFixed(m < 9500 ? 1 : 0).replace(".", ",") + " km";
   }
-
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
+  function rutorForBounds(b, steg) {
+    var ut = [];
+    for (var x = Math.floor(b.getWest() / steg); x * steg <= b.getEast(); x++) {
+      for (var y = Math.floor(b.getSouth() / steg); y * steg <= b.getNorth(); y++) {
+        ut.push(x + "_" + y);
+      }
+    }
+    return ut;
+  }
+  function rutaFor(lon, lat, steg) {
+    return Math.floor(lon / steg) + "_" + Math.floor(lat / steg);
   }
 
-  function hamta(url) {
-    return fetch(url, { credentials: "omit" }).then(function (r) {
-      if (!r.ok) throw new Error(url + " svarade " + r.status);
-      return r.json();
+  /* ------------------------------------------------------------ kartappen */
+  function kartappen() {
+    var karta = L.map("karta", {
+      preferCanvas: true, zoomControl: false,
+      center: [62.5, 16.5], zoom: 5, worldCopyJump: false
     });
-  }
-
-  /* -------------------------------------------------------------- karta */
-  function byggKarta(elId, opts) {
-    opts = opts || {};
-    var karta = L.map(elId, {
-      preferCanvas: true,
-      center: opts.center || [55.85, 13.6],
-      zoom: opts.zoom || 8,
-      scrollWheelZoom: !opts.mini
-    });
+    L.control.zoom({ position: "bottomright" }).addTo(karta);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsgivare'
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(karta);
-    return karta;
-  }
 
-  function lfvLager() {
-    return L.tileLayer.wms(LFV.url, {
-      layers: LFV_LAGER,
-      format: "image/png",
-      transparent: true,
-      version: "1.1.1",
-      opacity: 0.7,
-      attribution: LFV.attribution
-    });
-  }
-
-  /* --------------------------------------------------------- startsidan */
-  function startsidan() {
-    var karta = byggKarta("karta");
-    var statusEl = document.getElementById("laddstatus");
-    var svarEl = document.getElementById("positionssvar");
-    var posKnapp = document.getElementById("positionsknapp");
-    var extraToggle = document.getElementById("extralager");
-    var lfvToggle = document.getElementById("lfvtoggle");
-
-    var lfv = lfvLager();
-    if (lfvToggle.checked) lfv.addTo(karta);
-    lfvToggle.addEventListener("change", function () {
-      if (lfvToggle.checked) lfv.addTo(karta); else karta.removeLayer(lfv);
+    var lfv = L.tileLayer.wms(LFV.url, {
+      layers: LFV_LAGER, format: "image/png", transparent: true,
+      version: "1.1.1", opacity: 0.7, attribution: LFV.attribution
     });
 
-    var karnGrupp = L.layerGroup().addTo(karta);
-    var extraGrupp = L.layerGroup();
-    var alltGeojson = null;
+    var omradeslager = L.layerGroup().addTo(karta);
+    var laddadeRutor = {};       // rutid -> true
+    var ritade = {};             // nvrid -> true
+    var visadeFeatures = [];     // för avståndsberäkning
+    var oversiktLagd = false;
+    var oversiktInfo = null;
 
-    extraToggle.addEventListener("change", function () {
-      if (extraToggle.checked) extraGrupp.addTo(karta); else karta.removeLayer(extraGrupp);
-    });
+    var statusEl = document.getElementById("kartstatus");
+    var svarEl = document.getElementById("svar");
+    var panelEl = document.getElementById("panel");
 
     function stil(f) {
       var c = fargFor(f.properties.lager);
       return { color: c, weight: 1.5, opacity: 0.9, fillColor: c, fillOpacity: 0.25 };
     }
+    function popup(p) {
+      return "<strong>" + esc(p.namn) + "</strong><br>" + esc(p.skyddstyp) +
+        '<br><a href="/omrade/' + p.nvrid + "-" + p.slug + '/">Vad säger beslutet?</a>';
+    }
+    function laggTill(features) {
+      var nya = features.filter(function (f) { return !ritade[f.properties.nvrid]; });
+      nya.forEach(function (f) { ritade[f.properties.nvrid] = true; });
+      if (!nya.length) return;
+      visadeFeatures = visadeFeatures.concat(nya);
+      L.geoJSON({ type: "FeatureCollection", features: nya }, {
+        style: stil,
+        onEachFeature: function (f, l) { l.bindPopup(popup(f.properties)); }
+      }).addTo(omradeslager);
+    }
+    function status(text) { statusEl.textContent = text || ""; }
 
-    function popup(f) {
-      var p = f.properties;
-      var url = "/omrade/" + p.nvrid + "-" + p.slug + "/";
-      return '<strong>' + esc(p.namn) + "</strong><br>" + esc(p.skyddstyp) +
-        "<br>" + (p.antal_citat
-          ? p.antal_citat + " verifierade citat ur beslutet"
-          : "Inga verifierade citat — läs beslutet") +
-        '<br><a href="' + url + '">Öppna områdessidan</a>';
+    function laddaForVy() {
+      var z = karta.getZoom();
+      if (z < DETALJ_FRAN_ZOOM) {
+        if (oversiktLagd) {
+          status(oversiktInfo);
+          return;
+        }
+        status("Laddar översikt …");
+        return hamta(DATA + "/oversikt.json").then(function (gj) {
+          oversiktLagd = true;
+          laggTill(gj.features);
+          oversiktInfo = gj.antal_utelamnade
+            ? gj.antal_utelamnade + " mindre områden visas först när du zoomar in"
+            : "";
+          status(oversiktInfo);
+        }).catch(function (e) {
+          status("Kartdata kunde inte laddas — tolka inte en tom karta som att " +
+                 "inget är reglerat. (" + e.message + ")");
+        });
+      }
+      var rutor = rutorForBounds(karta.getBounds(), VISNING_RUTA).filter(function (r) {
+        return !laddadeRutor[r];
+      });
+      if (!rutor.length) { status(""); return; }
+      status("Laddar områden …");
+      return Promise.all(rutor.map(function (r) {
+        laddadeRutor[r] = true;
+        return hamta(DATA + "/rutor/" + r + ".json")
+          .then(function (gj) { laggTill(gj.features); })
+          .catch(function () { /* ruta utan områden */ });
+      })).then(function () { status(""); });
     }
 
-    hamta(DATA + "/areas.geojson").then(function (gj) {
-      alltGeojson = gj;
-      var karn = [], extra = [];
-      gj.features.forEach(function (f) {
-        (f.properties.karnlager ? karn : extra).push(f);
-      });
-      L.geoJSON({ type: "FeatureCollection", features: karn }, {
-        style: stil,
-        onEachFeature: function (f, l) { l.bindPopup(popup(f)); }
-      }).addTo(karnGrupp);
-      L.geoJSON({ type: "FeatureCollection", features: extra }, {
-        style: stil,
-        onEachFeature: function (f, l) { l.bindPopup(popup(f)); }
-      }).addTo(extraGrupp);
-      statusEl.textContent = karn.length + " områden i kärnlagret laddade, " +
-        extra.length + " i extralagren.";
-      posKnapp.disabled = false;
-      try { karta.fitBounds(L.geoJSON(gj).getBounds(), { padding: [10, 10] }); }
-      catch (e) { /* behåll startvyn */ }
-    }).catch(function (e) {
-      statusEl.textContent = "Kartdata kunde inte laddas: " + e.message +
-        " — inga områden visas. Tolka inte en tom karta som att inget är reglerat.";
+    karta.on("moveend zoomend", laddaForVy);
+
+    /* ---------------------------------------------------------- position */
+    var minPosition = null;
+    var positionsMarkor = null;
+
+    function visaPanel(html) {
+      svarEl.innerHTML = html;
+      panelEl.classList.add("oppen");
+    }
+    document.getElementById("stangpanel").addEventListener("click", function () {
+      panelEl.classList.remove("oppen");
     });
 
-    var bboxIndex = null;
-    function index() {
-      if (bboxIndex) return Promise.resolve(bboxIndex);
-      return hamta(DATA + "/bbox-index.json").then(function (d) {
-        bboxIndex = d; return d;
-      });
-    }
-
-    posKnapp.addEventListener("click", function () {
+    function hamtaPosition(automatiskt) {
       if (!navigator.geolocation) {
-        svarEl.innerHTML = '<div class="svar svar-tacks-ej"><span class="svar-rubrik">' +
-          "Positionsbestämning saknas i den här webbläsaren</span>" +
-          "Sök upp området på kartan i stället.</div>";
+        visaPanel(svarBlock("tacks-ej", "Positionsbestämning saknas i den här webbläsaren",
+          "<p>Sök upp området på kartan i stället.</p>"));
         return;
       }
-      posKnapp.disabled = true;
-      svarEl.innerHTML = '<p class="laddstatus">Hämtar position …</p>';
+      status("Hämtar din position …");
       navigator.geolocation.getCurrentPosition(function (pos) {
         var lat = pos.coords.latitude, lon = pos.coords.longitude;
-        L.circleMarker([lat, lon], { radius: 6, color: "#0b4f8a", weight: 3,
-          fillColor: "#fff", fillOpacity: 1 }).bindTooltip("Din position").addTo(karta);
+        minPosition = [lon, lat];
+        if (positionsMarkor) karta.removeLayer(positionsMarkor);
+        positionsMarkor = L.circleMarker([lat, lon], {
+          radius: 7, color: "#0b4f8a", weight: 3, fillColor: "#fff", fillOpacity: 1
+        }).bindTooltip("Din position").addTo(karta);
         karta.setView([lat, lon], 12);
         svaraForPosition(lon, lat);
       }, function (err) {
-        posKnapp.disabled = false;
-        svarEl.innerHTML = '<div class="svar svar-tacks-ej"><span class="svar-rubrik">' +
-          "Positionen kunde inte hämtas</span>" + esc(err.message) +
-          " Sök upp området på kartan i stället.</div>";
+        status("");
+        if (!automatiskt) {
+          visaPanel(svarBlock("tacks-ej", "Positionen kunde inte hämtas",
+            "<p>" + esc(err.message) + " Sök upp området på kartan i stället.</p>"));
+        }
       }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
-    });
+    }
+    document.getElementById("positionsknapp")
+      .addEventListener("click", function () { hamtaPosition(false); });
 
     window.DK_positionssvar = svaraForPosition;   // används av testkörningar
 
-    function svaraForPosition(lon, lat) {
-      svarEl.innerHTML = '<p class="laddstatus">Kontrollerar mot områdesgränserna …</p>';
-      index().then(function (idx) {
-        var kandidater = idx.rader.filter(function (r) {
-          return lon >= r[6] && lon <= r[8] && lat >= r[7] && lat <= r[9];
-        });
-        return Promise.all(kandidater.map(function (r) {
-          return hamta(DATA + "/omraden/" + r[0] + ".json");
-        }));
-      }).then(function (omraden) {
-        var traffar = omraden.filter(function (o) {
-          return punktIGeometri(lon, lat, o.geometri);
-        });
-        visaSvar(lon, lat, traffar);
-      }).catch(function (e) {
-        svarEl.innerHTML = '<div class="svar svar-tacks-ej"><span class="svar-rubrik">' +
-          "Kontrollen kunde inte genomföras</span>" + esc(e.message) +
-          " Tolka inte detta som att inget är reglerat på platsen.</div>";
-      }).then(function () { posKnapp.disabled = false; });
+    function svarBlock(klass, rubrik, brodtext) {
+      return '<div class="svar svar-' + klass + '"><strong>' + esc(rubrik) +
+             "</strong>" + brodtext + "</div>";
     }
 
-    function narliggande(lon, lat, uteslut) {
-      if (!alltGeojson) return [];
+    function svaraForPosition(lon, lat) {
+      visaPanel('<p class="laddstatus">Kontrollerar mot områdesgränserna …</p>');
+      // 3×3 rutor: mittrutan räcker för att avgöra om punkten ligger inne i ett
+      // område, men grannarna behövs för att kunna säga vad som ligger nära.
+      var mx = Math.floor(lon / GEOM_RUTA), my = Math.floor(lat / GEOM_RUTA);
+      var rid = mx + "_" + my, grannar = [];
+      for (var gx = -1; gx <= 1; gx++) {
+        for (var gy = -1; gy <= 1; gy++) grannar.push((mx + gx) + "_" + (my + gy));
+      }
+      Promise.all([
+        Promise.all(grannar.map(function (g) {
+          return hamta(DATA + "/bbox/" + g + ".json").catch(function () { return { rader: [] }; });
+        })).then(function (svar) {
+          var rader = [];
+          svar.forEach(function (x) { rader = rader.concat(x.rader || []); });
+          return { rader: rader };
+        }),
+        Promise.all(grannar.map(function (g) {
+          return hamta(DATA + "/geom/" + g + ".json").catch(function () { return {}; });
+        })).then(function (svar) {
+          var celler = { omraden: {}, stora: [] };
+          svar.forEach(function (c) {
+            Object.assign(celler.omraden, c.omraden || {});
+            celler.stora = celler.stora.concat(c.stora || []);
+          });
+          return celler;
+        })
+      ])
+        .then(function (svar) {
+          var idx = svar[0], cell = svar[1];
+          var omraden = cell.omraden || {};
+          var kandidater = (idx.rader || []).filter(function (r) {
+            return lon >= r[6] && lon <= r[8] && lat >= r[7] && lat <= r[9];
+          });
+          // Stora områden ligger i egna filer — hämta bara de som är kandidater.
+          var storaKvar = (cell.stora || []).filter(function (nv) {
+            return kandidater.some(function (r) { return r[0] === nv; });
+          });
+          return Promise.all(storaKvar.map(function (nv) {
+            return hamta(DATA + "/geom/stora/" + nv + ".json")
+              .then(function (g) { omraden[nv] = g; })
+              .catch(function () {});
+          })).then(function () {
+            return {
+              traffar: kandidater.filter(function (r) {
+                return punktIGeometri(lon, lat, omraden[r[0]]);
+              }),
+              rader: idx.rader || [],
+              geometrier: omraden
+            };
+          });
+        })
+        .then(function (res) {
+          var traffar = res.traffar;
+          // Kolumnordning enligt data/bbox-index.json: nvrid, slug, namn,
+          // skyddstyp, lager, svarsläge, minx, miny, maxx, maxy.
+          visaSvar(lon, lat, traffar.map(function (r) {
+            return { nvrid: r[0], slug: r[1], namn: r[2], skyddstyp: r[3],
+                     antalCitat: r[10] };
+          }), res.rader, res.geometrier);
+          status("");
+        })
+        .catch(function (e) {
+          visaPanel(svarBlock("tacks-ej", "Kontrollen kunde inte genomföras",
+            "<p>" + esc(e.message) +
+            " Tolka inte detta som att inget är reglerat på platsen.</p>"));
+        });
+    }
+
+    function avstandTillBbox(lon, lat, bb) {
+      // Avstånd till rektangeln. Noll om punkten ligger i den. Alltid ≤
+      // avståndet till själva geometrin, alltså en försiktig uppskattning.
+      var dx = Math.max(bb[0] - lon, 0, lon - bb[2]);
+      var dy = Math.max(bb[1] - lat, 0, lat - bb[3]);
+      var nx = dx ? avstandM(lon, lat, lon + dx, lat) : 0;
+      var ny = dy ? avstandM(lon, lat, lon, lat + dy) : 0;
+      return Math.sqrt(nx * nx + ny * ny);
+    }
+
+    /* Närliggande områden hämtas ur bbox-rutorna runt punkten, inte ur det som
+     * råkar vara utritat på kartan. Den tidigare varianten läste de ritade
+     * ytorna, och när kartan var utzoomad fanns bara områden över 50 ha där —
+     * svaret påstod då att närmaste område låg 3,3 km bort när det i själva
+     * verket låg 940 m bort. Vad kartan visar och vad som finns är två skilda
+     * saker.
+     *
+     * Avståndet mäts mot originalgeometrin när den finns i de hämtade rutorna,
+     * annars mot områdets omslutande rektangel — vilket ger ett kortare, alltså
+     * försiktigare, avstånd. */
+    function narliggande(lon, lat, uteslut, rader, geometrier) {
       var lista = [];
-      alltGeojson.features.forEach(function (f) {
-        if (uteslut.indexOf(f.properties.nvrid) !== -1) return;
-        if (!f.properties.karnlager) return;
-        var d = narmasteHorn(lon, lat, f.geometry);
-        if (d < 10000) lista.push({ p: f.properties, d: d });
+      rader.forEach(function (r) {
+        if (uteslut.indexOf(r[0]) !== -1) return;
+        var g = geometrier[r[0]];
+        var d = g ? narmasteHorn(lon, lat, g) : avstandTillBbox(lon, lat, r.slice(6, 10));
+        if (d < 10000) {
+          lista.push({ nvrid: r[0], slug: r[1], namn: r[2], skyddstyp: r[3],
+                       antalCitat: r[10], d: d, exakt: !!g });
+        }
       });
       lista.sort(function (a, b) { return a.d - b.d; });
-      return lista.slice(0, 8);
+      return lista.slice(0, 6);
     }
 
-    function visaSvar(lon, lat, traffar) {
+    function visaSvar(lon, lat, traffar, rader, geometrier) {
       var h = "";
       if (traffar.length) {
-        h += '<div class="svar svar-reglerat"><span class="svar-rubrik">' +
-          "Reglerat område — läs beslutet</span>" +
-          "<p>Din position ligger inom " + traffar.length +
-          (traffar.length === 1 ? " område" : " områden") +
-          " med myndighetsbeslut. Tjänsten avgör inte vad besluten innebär för " +
-          "din flygning.</p><ul class=\"lista-omraden\">";
-        traffar.forEach(function (o) {
-          h += "<li><a href=\"/omrade/" + o.nvrid + "-" + o.slug + "/\">" +
+        var rader = traffar.map(function (o) {
+          return '<li><a href="/omrade/' + o.nvrid + "-" + o.slug + '/">' +
             esc(o.namn) + "</a> — " + esc(o.skyddstyp) +
-            (o.citat && o.citat.length
-              ? " · " + o.citat.length + " verifierade citat"
-              : " · inga verifierade citat, läs beslutet") +
-            (o.ocr ? " · OCR-tolkad text" : "") + "</li>";
-        });
-        h += "</ul></div>";
+            (o.antalCitat ? " · " + o.antalCitat + " citat ur beslutet"
+                          : " · läs beslutet") + "</li>";
+        }).join("");
+        h += svarBlock("reglerat", "Reglerat område — läs beslutet",
+          "<p>Du står i " + traffar.length +
+          (traffar.length === 1 ? " område" : " områden") +
+          " med myndighetsbeslut.</p><ul class=\"lista-omraden\">" + rader + "</ul>");
       } else {
-        h += '<div class="svar svar-ingen"><span class="svar-rubrik">' +
-          "Ingen restriktion hittad i de källor tjänsten täcker</span>" +
-          "<p>Positionen ligger inte inom något av de skyddade områden som finns i " +
-          "tjänstens databas. Det är ett besked om vad databasen innehåller — " +
-          "inte ett besked om din flygning.</p></div>";
+        h += svarBlock("ingen", "Ingen restriktion hittad i de källor tjänsten täcker",
+          "<p>Positionen ligger inte inom något skyddat område i tjänstens databas. " +
+          "Det är ett besked om vad databasen innehåller — inte om din flygning.</p>");
       }
-      h += '<div class="svar svar-tacks-ej"><span class="svar-rubrik">' +
-        "Denna källa täcks inte här</span>" +
-        "<p>Luftrum (flygplatser, restriktionsområden, NOTAM) visas i LFV-lagret och " +
+      h += svarBlock("tacks-ej", "Denna källa täcks inte här",
+        '<p>Luftrum (flygplatser, restriktionsområden, NOTAM) visas i LFV-lagret och ' +
         'på LFV:s drönarkarta — kontrollera alltid det separat: ' +
-        '<a href="' + LFV.dronechart + '" rel="noopener">' + LFV.dronechart +
-        "</a>.</p></div>";
+        '<a href="' + LFV.dronechart + '" rel="noopener">' + LFV.dronechart + "</a>.</p>");
 
-      var narliggandeLista = narliggande(lon, lat, traffar.map(function (o) { return o.nvrid; }));
-      if (narliggandeLista.length) {
-        h += "<h3>Närliggande områden</h3><ul class=\"lista-omraden\">";
-        narliggandeLista.forEach(function (n) {
-          h += "<li><a href=\"/omrade/" + n.p.nvrid + "-" + n.p.slug + "/\">" +
-            esc(n.p.namn) + "</a> — " + esc(n.p.skyddstyp) +
-            ' <span class="avstand">ca ' + formatAvstand(n.d) + " bort</span></li>";
-        });
-        h += "</ul><p class=\"avstand\">Avstånden är beräknade mot den förenklade " +
-          "kartgeometrin (tolerans 15 m) och är ungefärliga.</p>";
+      var nara = narliggande(lon, lat, traffar.map(function (o) { return o.nvrid; }),
+                             rader || [], geometrier || {});
+      if (nara.length) {
+        h += "<h2>Närliggande</h2><ul class=\"lista-omraden\">" +
+          nara.map(function (n) {
+            return '<li><a href="/omrade/' + n.nvrid + "-" + n.slug + '/">' +
+              esc(n.namn) + "</a> <span class=\"avstand\">ca " +
+              formatAvstand(n.d) + "</span></li>";
+          }).join("") + "</ul>";
       }
-      h += '<div class="ansvar">' + (window.DK_ANSVARSTEXT || "") + "</div>";
-      svarEl.innerHTML = h;
+      h += '<p class="ansvar">' + (window.DK_ANSVARSTEXT || "") + "</p>";
+      visaPanel(h);
     }
+
+    /* ------------------------------------------------------------ lager */
+    var lfvRuta = document.getElementById("lfvtoggle");
+    if (lfvRuta.checked) lfv.addTo(karta);
+    lfvRuta.addEventListener("change", function () {
+      if (lfvRuta.checked) lfv.addTo(karta); else karta.removeLayer(lfv);
+    });
+    document.getElementById("lagerknapp").addEventListener("click", function () {
+      document.getElementById("lagerpanel").classList.toggle("oppen");
+    });
+
+    laddaForVy();
+    hamtaPosition(true);       // fråga direkt — appen handlar om var du står
   }
 
   /* --------------------------------------------------------- minikartan */
@@ -310,20 +399,39 @@
     var el = document.getElementById("minikarta");
     if (!el) return;
     var nvrid = el.getAttribute("data-nvrid");
-    var karta = byggKarta("minikarta", { mini: true });
-    hamta(DATA + "/omraden/" + nvrid + ".json").then(function (o) {
-      if (!o.geometri) { el.innerHTML = "<p>Området saknar kartgeometri i källdatan.</p>"; return; }
-      var lager = L.geoJSON(o.geometri, {
-        style: { color: fargFor(o.lager), weight: 2, fillColor: fargFor(o.lager),
-                 fillOpacity: 0.25 }
+    var rid = el.getAttribute("data-ruta");
+    var farg = el.getAttribute("data-farg") || "#2e7d32";
+    var karta = L.map("minikarta", { scrollWheelZoom: false });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(karta);
+
+    function rita(geom) {
+      if (!geom) {
+        el.innerHTML = "<p>Området saknar kartgeometri i källdatan.</p>";
+        return;
+      }
+      var lager = L.geoJSON(geom, {
+        style: { color: farg, weight: 2, fillColor: farg, fillOpacity: 0.25 }
       }).addTo(karta);
       karta.fitBounds(lager.getBounds(), { padding: [12, 12] });
-      lfvLager().addTo(karta);
-    });
+      L.tileLayer.wms(LFV.url, {
+        layers: LFV_LAGER, format: "image/png", transparent: true,
+        version: "1.1.1", opacity: 0.7, attribution: LFV.attribution
+      }).addTo(karta);
+    }
+
+    hamta(DATA + "/geom/" + rid + ".json").then(function (d) {
+      var geom = (d.omraden || {})[nvrid];
+      if (geom) return rita(geom);
+      // Stora områden ligger i egen fil.
+      return hamta(DATA + "/geom/stora/" + nvrid + ".json").then(rita);
+    }).catch(function () { rita(null); });
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    if (document.getElementById("karta")) startsidan();
+    if (document.getElementById("karta")) kartappen();
     if (document.getElementById("minikarta")) minikarta();
   });
 })();

@@ -78,8 +78,8 @@ def test_a_citatrakenskap(r):
     """
     provade = godkanda = 0
     saknade_text = 0
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
         for c in o.get("citat") or []:
             provade += 1
             txt = dokumenttext(c["dokument_id"])
@@ -110,8 +110,8 @@ def test_a_citatrakenskap(r):
 
     # Samma citat ska också gå att hitta i den byggda HTML-sidan.
     kontrollerade_sidor = 0
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden")))[:60]:
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden")))[:60]:
+        o = read_json(os.path.join(DATA, "omraden", fil))
         if not o.get("citat"):
             continue
         sidpath = os.path.join(DIST, "omrade", f"{o['nvrid']}-{o['slug']}", "index.html")
@@ -134,12 +134,12 @@ def test_a_citatrakenskap(r):
 
 # ---------------------------------------------------------------- B
 def test_b_geometriproveniens(r):
-    manifest = read_json(os.path.join(DIST, "data", "manifest.json"))
+    manifest = read_json(os.path.join(DATA, "manifest.json"))
     kallhashar = set()
     for lager in manifest["kallor"]["nvr_wfs"]["lager"].values():
         kallhashar.add(lager["svarshash_sha256"])
 
-    areas = read_json(os.path.join(DIST, "data", "areas.geojson"))
+    areas = read_json(os.path.join(DATA, "areas.geojson"))
     nvrid_i_areas = {f["properties"]["nvrid"] for f in areas["features"]}
     tol = manifest["databygge"]["forenkling"]["tolerans_m"]
 
@@ -149,8 +149,8 @@ def test_b_geometriproveniens(r):
     vaxta = 0
     kollade_ringar = 0
     storsta_forlust = 0.0
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
         g = o.get("geometri")
         if g is None:
             continue
@@ -163,8 +163,8 @@ def test_b_geometriproveniens(r):
 
     # Ringgiltighet och krympgaranti på visningsgeometrin.
     original = {}
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
         if o.get("geometri"):
             original[o["nvrid"]] = o["geometri"]
 
@@ -204,6 +204,29 @@ def test_b_geometriproveniens(r):
                                  f"NVRID {nvrid}")
                 storsta_forlust = max(storsta_forlust, forlust)
 
+    # Oberoende arealavstämning mot registrets eget AREA_HA. Fångar tysta
+    # geometrifel som inget annat test ser — t.ex. när flerdelade områden
+    # plattas ihop och delar av dem försvinner ur kartan.
+    grova = []
+    provade_areal = 0
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
+        avv = o.get("arealavvikelse_procent")
+        if avv is None:
+            continue
+        provade_areal += 1
+        # En geometri som täcker mindre än halva den registrerade arealen är
+        # inte en avrundningsfråga utan ett strukturfel.
+        if avv < -50:
+            grova.append(f"{o['nvrid']} {o['namn']}: {o.get('beraknad_area_ha')} ha "
+                         f"mot registrets {o.get('area_ha')} ha ({avv} %)")
+    r.kolla(not grova,
+            f"B: {len(grova)} geometrier täcker under halva registrerad areal "
+            f"— sannolikt tappade delområden: {grova[:5]}")
+    if not grova:
+        r.notera(f"B: arealavstämning mot AREA_HA gjord för {provade_areal} objekt, "
+                 "ingen geometri under halva registrerad areal ✓")
+
     r.kolla(foraldralosa == 0, f"B: {foraldralosa} föräldralösa geometrier")
     r.kolla(ogiltiga == 0, f"B: {ogiltiga} ogiltiga ringar efter förenkling")
     r.kolla(vaxta == 0, f"B: {vaxta} objekt där förenklingen ökade ytan "
@@ -235,8 +258,8 @@ def test_c_golden(r):
     for fall in golden["punkter_utan_traff"]:
         lon, lat = fall["lon"], fall["lat"]
         traffar = []
-        for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-            o = read_json(os.path.join(DIST, "data", "omraden", fil))
+        for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+            o = read_json(os.path.join(DATA, "omraden", fil))
             g = o.get("geometri")
             bb = o.get("bbox")
             if not g or not bb:
@@ -253,7 +276,7 @@ def test_c_golden(r):
     # C2 Kullaberg: sida finns, ≥1 verifierat citat, PDF-länk svarar 200.
     for fall in golden["omraden_med_citat"]:
         nvrid = fall["nvrid"]
-        o = read_json(os.path.join(DIST, "data", "omraden", f"{nvrid}.json"))
+        o = read_json(os.path.join(DATA, "omraden", f"{nvrid}.json"))
         if not r.kolla(o is not None, f"C2 {nvrid}: områdesdata saknas"):
             continue
         sidpath = os.path.join(DIST, "omrade", f"{nvrid}-{o['slug']}", "index.html")
@@ -274,7 +297,7 @@ def test_c_golden(r):
     # skulle ha tappat.
     for fall in golden.get("citat_som_maste_finnas", []):
         nvrid = fall["nvrid"]
-        o = read_json(os.path.join(DIST, "data", "omraden", f"{nvrid}.json"))
+        o = read_json(os.path.join(DATA, "omraden", f"{nvrid}.json"))
         if not r.kolla(o is not None, f"C2b {fall['id']}: områdesdata saknas"):
             continue
         norm_del = normalisera(fall["delstrang"])
@@ -294,7 +317,7 @@ def test_c_golden(r):
     # C2c Regressioner i hur föreskriftsinledningen hittas.
     reg = golden.get("inledning_regressioner") or {}
     for fall in reg.get("maste_ha_citat", []):
-        o = read_json(os.path.join(DIST, "data", "omraden", f"{fall['nvrid']}.json"))
+        o = read_json(os.path.join(DATA, "omraden", f"{fall['nvrid']}.json"))
         if not r.kolla(o is not None, f"C2c {fall['nvrid']}: områdesdata saknas"):
             continue
         med_inledning = [c for c in o.get("citat") or [] if c.get("inledning")]
@@ -309,8 +332,8 @@ def test_c_golden(r):
     AVSLUT = re.compile(r"(?::|\batt)\s*:?\s*$", re.I)
     dåliga = []
     antal_inledningar = 0
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
         for c in o.get("citat") or []:
             if not c.get("inledning"):
                 continue
@@ -326,8 +349,8 @@ def test_c_golden(r):
 
     # C3 Säsong: minst ett område visar datumperioder ur källdata.
     med_sasong = []
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
         if o.get("sasongsdata"):
             med_sasong.append(o)
     r.kolla(len(med_sasong) >= golden.get("min_omraden_med_sasong", 1),
@@ -356,12 +379,14 @@ def test_c_golden(r):
     if os.path.exists(kallor):
         with open(kallor, encoding="utf-8") as fh:
             sida = fh.read()
-        manifest = read_json(os.path.join(DIST, "data", "manifest.json"))
+        manifest = read_json(os.path.join(DATA, "manifest.json"))
         datum = manifest["hamtningsdatum"]
         r.kolla(datum in sida, "C4: hämtningsdatum saknas på /kallor/")
-        lager_i_bruk = {o["lager"] for o in
-                        (read_json(os.path.join(DIST, "data", "omraden", f))
-                         for f in os.listdir(os.path.join(DIST, "data", "omraden")))}
+        lager_i_bruk = set()
+        for fil in os.listdir(os.path.join(DATA, "omraden")):
+            o = read_json(os.path.join(DATA, "omraden", fil))
+            if o:
+                lager_i_bruk.add(o["lager"])
         # Varje lager i scope ska stå på /kallor/ med hämtningsdatum — även de
         # som saknar objekt i länet. Ett tomt lager får inte tyst försvinna.
         LAGER_I_SCOPE = {
@@ -460,8 +485,8 @@ def http_ok(url, timeout=30):
 
 def test_d_lankhalsa(r, antal=50):
     lankar = []
-    for fil in sorted(os.listdir(os.path.join(DIST, "data", "omraden"))):
-        o = read_json(os.path.join(DIST, "data", "omraden", fil))
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
         for d in o.get("dokument") or []:
             if d.get("url"):
                 lankar.append((o["nvrid"], d["url"]))

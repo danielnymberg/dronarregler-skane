@@ -84,17 +84,23 @@ def har_sjalvskarning(ring, max_punkter=2000):
     return False
 
 
-def forenkla_ring(ring, tol_m, ar_hal=False):
-    """Douglas–Peucker med krympgaranti på nettoytan.
+def forenkla_ring(ring, tol_m, ar_hal=False, riktning="krymp"):
+    """Douglas–Peucker med garanterad felriktning på nettoytan.
 
     Returnerar (ny_ring, forenklad: bool).
 
-    Nettoytan är ytterring minus hål. För att förenklingen aldrig ska kunna
-    påstå större utbredning än myndighetens geometri gäller därför två olika
-    krav:
+    Nettoytan är ytterring minus hål. Vilken väg felet får gå beror på vad
+    geometrin ska användas till:
 
-      ytterring  — får inte bli STÖRRE (då växer ytan)
-      hålring    — får inte bli MINDRE (då krymper hålet och ytan växer)
+      riktning="krymp"  — VISNINGSgeometri. Ytan får aldrig växa, så kartan
+                          aldrig ritar mer utbredning än myndigheten beslutat.
+                          Ytterring får inte bli större, hål inte mindre.
+
+      riktning="vaxa"   — geometri för PUNKT-I-POLYGON. Här är det motsatta
+                          felet det farliga: en krympt yta gör att någon som
+                          står strax innanför gränsen får svaret "ingen
+                          restriktion hittad". Ytan får därför aldrig krympa.
+                          Ytterring får inte bli mindre, hål inte större.
 
     Bryts kravet returneras originalringen orörd.
     """
@@ -123,7 +129,11 @@ def forenkla_ring(ring, tol_m, ar_hal=False):
     if ny[0] != ny[-1]:
         ny[-1] = list(ny[0])
     ny_yta, org_yta = ring_area_m2(ny), ring_area_m2(ring)
-    if (ny_yta < org_yta) if ar_hal else (ny_yta > org_yta):
+    if riktning == "vaxa":
+        brutet = (ny_yta > org_yta) if ar_hal else (ny_yta < org_yta)
+    else:
+        brutet = (ny_yta < org_yta) if ar_hal else (ny_yta > org_yta)
+    if brutet:
         return ring, False       # ytkravet brutet — behåll originalet
     # Douglas–Peucker på en sluten ring kan i sällsynta fall låta två
     # förenklade segment korsa varandra. En självskärande ring är ogiltig
@@ -133,7 +143,7 @@ def forenkla_ring(ring, tol_m, ar_hal=False):
     return ny, len(ny) < len(ring)
 
 
-def forenkla_geometri(geom, tol_m):
+def forenkla_geometri(geom, tol_m, riktning="krymp"):
     """Förenklar Polygon/MultiPolygon. Returnerar (geometri, statistik)."""
     stat = {"punkter_fore": 0, "punkter_efter": 0, "ringar_behallna": 0,
             "yta_fore_m2": 0.0, "yta_efter_m2": 0.0}
@@ -143,15 +153,17 @@ def forenkla_geometri(geom, tol_m):
         for j, ring in enumerate(rings):
             tecken = 1 if j == 0 else -1
             fore += ring_area_m2(ring) * tecken
-            ny, andrad = forenkla_ring(ring, tol_m, ar_hal=(j != 0))
+            ny, andrad = forenkla_ring(ring, tol_m, ar_hal=(j != 0),
+                                       riktning=riktning)
             if not andrad:
                 behallna += 1
             punkter_efter += len(ny)
             efter += ring_area_m2(ny) * tecken
             ut.append(ny)
-        # Sista spärren: skulle polygonens NETTOyta ändå ha vuxit — t.ex. för
-        # att en ytterring degenererat — behålls hela polygonen oförenklad.
-        if efter > fore:
+        # Sista spärren: skulle polygonens NETTOyta ändå ha gått åt fel håll —
+        # t.ex. för att en ytterring degenererat — behålls hela polygonen
+        # oförenklad.
+        if (efter < fore) if riktning == "vaxa" else (efter > fore):
             ut = [list(r) for r in rings]
             punkter_efter = sum(len(r) for r in rings)
             efter = fore
@@ -227,3 +239,128 @@ def avstand_m(lon1, lat1, lon2, lat2):
     return 2 * JORDRADIE * math.asin(math.sqrt(a))
 
 
+
+
+# ---------------------------------------------------------------------------
+# ESRI JSON → GeoJSON
+#
+# Naturvårdsverkets WFS levererar trasig JSON i outputFormat=GEOJSON för celler
+# med stora geometrier: svaret kapas mitt i, deterministiskt, och en eller flera
+# features saknas. Samma cell i outputFormat=ESRIGEOJSON kommer komplett. Därför
+# hämtas allt som ESRI JSON och konverteras här.
+#
+# Skillnaden som spelar roll: i ESRI JSON ligger alla ringar i en platt lista och
+# ytterring skiljs från hål på ORIENTERINGEN (medurs = ytterring, moturs = hål),
+# inte på ordningen. I GeoJSON är första ringen i varje polygon ytterringen och
+# resten hål. Konverteringen måste därför klassa ringarna och para ihop varje hål
+# med den ytterring som omsluter det.
+# ---------------------------------------------------------------------------
+
+def _signerad_yta(ring):
+    """Shoelace med tecken. Används bara för att mäta yta, inte för att avgöra
+    om en ring är ytterring eller hål — se esri_till_geojson."""
+    s = 0.0
+    for i in range(len(ring) - 1):
+        x1, y1 = ring[i][0], ring[i][1]
+        x2, y2 = ring[i + 1][0], ring[i + 1][1]
+        s += (x2 - x1) * (y2 + y1)
+    return s
+
+
+def _ring_bbox(ring):
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _bbox_inuti(a, b):
+    return a[0] >= b[0] and a[1] >= b[1] and a[2] <= b[2] and a[3] <= b[3]
+
+
+def _ring_i_ring(inre, yttre):
+    """Sant om `inre` ligger innanför `yttre`. Prövar flera punkter, eftersom en
+    enskild punkt kan ligga exakt på den yttre ringens kant."""
+    provade = 0
+    for p in inre[:-1]:
+        if p in yttre:
+            continue
+        if _punkt_i_ring(p[0], p[1], yttre):
+            return True
+        provade += 1
+        if provade >= 3:
+            return False
+    return False
+
+
+def esri_till_geojson(feature):
+    """Konvertera en ESRI-JSON-feature till en GeoJSON-feature.
+
+    Ytterring kontra hål avgörs på INNESLUTNING, inte på ringens orientering.
+    Orienteringen går inte att lita på i den här datakällan: i naturreservatet
+    Verkeån (NVRID 2001534) har ett 5,2 km² stort hål samma rotationsriktning
+    som den 9,2 km² stora ytterringen. En orienteringsbaserad regel gjorde det
+    hålet till en egen yta och nästan fyrdubblade reservatets area.
+
+    Regeln som används i stället: en ring som ligger innanför ett jämnt antal
+    andra ringar är ytterring, innanför ett udda antal är den ett hål. Varje hål
+    hamnar i den minsta ring som omsluter det.
+    """
+    geom = feature.get("geometry") or {}
+    props = feature.get("attributes") or feature.get("properties") or {}
+    ringar = geom.get("rings")
+    if not ringar:
+        return {"type": "Feature", "geometry": None, "properties": dict(props)}
+
+    slutna = []
+    for r in ringar:
+        r = [[p[0], p[1]] for p in r]
+        if r[0] != r[-1]:
+            r.append(list(r[0]))
+        if len(r) >= 4:
+            slutna.append(r)
+    if not slutna:
+        return {"type": "Feature", "geometry": None, "properties": dict(props)}
+
+    boxar = [_ring_bbox(r) for r in slutna]
+    ytor = [abs(_signerad_yta(r)) for r in slutna]
+    # Störst först: bara en större ring kan omsluta en mindre.
+    ordning = sorted(range(len(slutna)), key=lambda i: -ytor[i])
+
+    foraldrar = {}
+    for pos, i in enumerate(ordning):
+        for j in ordning[:pos]:
+            if _bbox_inuti(boxar[i], boxar[j]) and _ring_i_ring(slutna[i], slutna[j]):
+                foraldrar[i] = j          # sista = minsta omslutande
+    djup = {}
+
+    def rakna_djup(i):
+        if i in djup:
+            return djup[i]
+        j = foraldrar.get(i)
+        djup[i] = 0 if j is None else rakna_djup(j) + 1
+        return djup[i]
+
+    polygoner, index_for = [], {}
+    for i in ordning:
+        if rakna_djup(i) % 2 == 0:
+            index_for[i] = len(polygoner)
+            polygoner.append([slutna[i]])
+    for i in ordning:
+        if rakna_djup(i) % 2 == 1:
+            j = foraldrar.get(i)
+            if j is not None and j in index_for:
+                polygoner[index_for[j]].append(slutna[i])
+
+    if not polygoner:
+        gj = None
+    elif len(polygoner) == 1:
+        gj = {"type": "Polygon", "coordinates": polygoner[0]}
+    else:
+        gj = {"type": "MultiPolygon", "coordinates": polygoner}
+    return {"type": "Feature", "geometry": gj, "properties": dict(props)}
+
+
+def esri_samling_till_geojson(doc):
+    """Konvertera ett helt ESRI-JSON-svar till en GeoJSON FeatureCollection."""
+    return {"type": "FeatureCollection",
+            "features": [esri_till_geojson(f) for f in doc.get("features", [])]}

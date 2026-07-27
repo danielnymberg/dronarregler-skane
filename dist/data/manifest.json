@@ -45795,19 +45795,19 @@
    "tolerans_m": 15,
    "koordinatdecimaler": 5,
    "punkter_fore": 166672,
-   "punkter_efter": 103279,
-   "ringar_behallna": 781,
-   "total_yta_fore_m2": 2522304328.870117,
-   "total_yta_efter_m2": 2521088299.0024414,
+   "punkter_efter": 98810,
+   "ringar_behallna": 660,
+   "total_yta_fore_m2": 2649382693.2285156,
+   "total_yta_efter_m2": 2648050020.46875,
    "max_ytminskning_procent": 1.996,
    "max_ytminskning_procent_objekt": "2043746",
    "objekt_med_ytokning": 0,
    "max_ytforlust_procent_per_objekt": 2.0,
    "objekt_per_anvand_tolerans": {
-    "15 m": 579,
-    "5 m": 50,
-    "1.5 m": 6,
-    "oförenklad": 5
+    "15 m": 582,
+    "1.5 m": 7,
+    "5 m": 48,
+    "oförenklad": 3
    },
    "_matgrans_ha": 1.0,
    "regel": "Douglas–Peucker med krympgaranti: en ring vars yta skulle växa av förenklingen behålls oförenklad"
@@ -45818,6 +45818,92 @@
    "utan_geometri": 0,
    "med_ocr": 300,
    "med_sasongsdata": 49
+  },
+  "arealavstamning": {
+   "provade": 632,
+   "mindre_an_registrerat_over_25_procent": 0,
+   "storre_an_registrerat_over_25_procent": 9,
+   "avvikelse_over_5_procent": 14,
+   "varsta_mindre": [],
+   "varsta_storre": [
+    {
+     "nvrid": "2001802",
+     "namn": "Skanör-Höll",
+     "area_ha_register": 36.56,
+     "beraknad_ha": 140.54,
+     "avvikelse_procent": 284.41
+    },
+    {
+     "nvrid": "2001803",
+     "namn": "Norra Ljunghusen",
+     "area_ha_register": 15.64,
+     "beraknad_ha": 186.04,
+     "avvikelse_procent": 1089.52
+    },
+    {
+     "nvrid": "2001804",
+     "namn": "Flommen",
+     "area_ha_register": 310.74,
+     "beraknad_ha": 1214.72,
+     "avvikelse_procent": 290.91
+    },
+    {
+     "nvrid": "2001807",
+     "namn": "Kämpinge strandbad",
+     "area_ha_register": 25.47,
+     "beraknad_ha": 42.58,
+     "avvikelse_procent": 67.19
+    },
+    {
+     "nvrid": "2001808",
+     "namn": "Skanörs ljung",
+     "area_ha_register": 337.64,
+     "beraknad_ha": 614.47,
+     "avvikelse_procent": 81.99
+    },
+    {
+     "nvrid": "2001811",
+     "namn": "Ljungskogens o Ljunghusens strandbad",
+     "area_ha_register": 130.7,
+     "beraknad_ha": 337.52,
+     "avvikelse_procent": 158.24
+    },
+    {
+     "nvrid": "2012156",
+     "namn": "Klövehallar, St Öllstorps skog",
+     "area_ha_register": 0.03,
+     "beraknad_ha": 0.04,
+     "avvikelse_procent": 28.77
+    },
+    {
+     "nvrid": "2012158",
+     "namn": "Ett område med mosippa, Bälinge 15:250",
+     "area_ha_register": 0.01,
+     "beraknad_ha": 0.03,
+     "avvikelse_procent": 153.9
+    },
+    {
+     "nvrid": "2030510",
+     "namn": "Göingeåsen",
+     "area_ha_register": 235.24,
+     "beraknad_ha": 647.06,
+     "avvikelse_procent": 175.07
+    }
+   ],
+   "regel": "geometrins nettoyta stäms av mot registrets AREA_HA"
+  },
+  "rutnat": {
+   "visning_grader": 1.0,
+   "geometri_grader": 0.25,
+   "antal_visningsrutor": 6,
+   "antal_geometrirutor": 1457,
+   "antal_stora_geometrifiler": 41,
+   "stor_grans_byte": 102400,
+   "antal_bboxrutor": 49,
+   "oversikt_antal": 304,
+   "oversikt_utelamnade": 336,
+   "oversikt_tolerans_m": 400,
+   "oversikt_min_area_ha": 50
   }
  }
 }
