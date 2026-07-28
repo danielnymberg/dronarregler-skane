@@ -133,6 +133,18 @@ LAGER_NAMN = {
 
 E = html.escape
 
+# Datafiler som lyfts ut ur dist/ för att de spränger Cloudflares filtak.
+# Fylls i av main() innan sidorna byggs; kallsida läser den.
+UTELAMNADE = []
+
+
+def datafil_lank(namn):
+    """Länk till en datafil — i utrullningen om den ryms, annars i förrådet."""
+    if any(n == namn for n, _ in UTELAMNADE):
+        raw = CONFIG["repo_url"].rstrip("/") + "/blob/main/data/" + namn
+        return f'<a href="{E(raw)}" rel="noopener">{E(namn)}</a>'
+    return f'<a href="/data/{E(namn)}">{E(namn)}</a>'
+
 
 def _tillgangsversion():
     """Kort innehållshash för app.js och style.css.
@@ -812,12 +824,20 @@ def kallsida(manifest, rapport, omraden):
              "verifieringen och ingen likhetströskel används — ett citat som inte "
              "förekommer ordagrant kastas.</p>")
     d.append('<p>Fullständiga maskinläsbara utfall: '
-             '<a href="/data/verification-report.json">verification-report.json</a>, '
-             '<a href="/data/manifest.json">manifest.json</a>.</p>')
+             '<a href="/data/verification-report.json">verification-report.json</a>'
+             + (f', {datafil_lank("manifest.json")}.</p>'))
+    if UTELAMNADE:
+        # Länkarna ovan får inte peka på filer som inte ligger här. En bruten
+        # länk till det egna underlaget är sämre än att säga var det finns.
+        d.append("<p>Följande filer är för stora för utrullningen "
+                 "(Cloudflare Pages tar max 25 MB per fil) och finns i "
+                 "kodförrådet i stället: "
+                 + ", ".join(f"{datafil_lank(n)} ({m} MB)" for n, m in UTELAMNADE)
+                 + ".</p>")
 
     d.append("<h2>Ladda ned databasen</h2>")
     d.append('<p>Tjänstens databas publiceras under CC0. '
-             '<a href="/data/oversikt.json">oversikt.json</a> (förenklad '
+             + datafil_lank("oversikt.json") + ' (förenklad '
              'visningsgeometri), rutnätsfiler under <code>/data/rutor/</code>, '
              "oförenklad originalgeometri under <code>/data/geom/</code>, samt "
              '<a href="/data/LICENSE">LICENSE</a> och '
@@ -1019,6 +1039,29 @@ def main():
     # kvar i kodförrådet som CC0-produkt och länkas därifrån på /kallor/.
     shutil.copytree(DATA, os.path.join(DIST, "data"),
                     ignore=shutil.ignore_patterns("omraden", "areas.geojson"))
+
+    # Cloudflare Pages tar max 25 MB per fil. Bulkfilerna — manifest, hela
+    # citatkorpusen, råextraktionen — passerade taket när rikstäckningen växte,
+    # och utrullningen stoppades helt. De används inte av appen (den läser
+    # rutnätet, lfv.json och luftfart.json) utan finns för granskning, så de
+    # lyfts ut ur dist/ och länkas i kodförrådet i stället.
+    #
+    # Gränsen är satt med marginal till taket: en fil som ligger på 24 MB idag
+    # spränger det vid nästa registeruppdatering, och då faller utrullningen
+    # igen — vid sämsta tänkbara tillfälle.
+    global UTELAMNADE
+    UTELAMNADE = []
+    for namn in sorted(os.listdir(os.path.join(DIST, "data"))):
+        p = os.path.join(DIST, "data", namn)
+        if not os.path.isfile(p):
+            continue
+        mb = os.path.getsize(p) / (1024 * 1024)
+        if mb > 20:
+            os.remove(p)
+            UTELAMNADE.append((namn, round(mb, 1)))
+    if UTELAMNADE:
+        log("  utelämnade ur dist/ (över 20 MB, finns i kodförrådet): " +
+            ", ".join(f"{n} {m} MB" for n, m in UTELAMNADE))
 
     omraden = []
     for nvrid in sorted(manifest["objekt"]):
