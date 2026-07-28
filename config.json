@@ -18,21 +18,5 @@
     "dronechart": "https://dronechart.lfv.se/"
   },
   "_omfattning_kommentar": "lan_kort = null ger rikstackande uttag. Satt till t.ex. 'Skane' for att bygga ett enskilt lan.",
-  "zoomband": [
-    {
-      "id": "oversikt",
-      "anvands_under_zoom": 9,
-      "tolerans_m": 400,
-      "min_area_ha": 50,
-      "kommentar": "en enda fil for hela landet, laddas nar man ar utzoomad"
-    },
-    {
-      "id": "detalj",
-      "anvands_fran_zoom": 9,
-      "tolerans_m": 15,
-      "min_area_ha": 0,
-      "kommentar": "rutnatsfiler, bara de rutor som syns laddas"
-    }
-  ],
-  "rutnat_grader": 1.0
+  "_kartdata_kommentar": "Kartan laddar rutnatsfiler for det synliga utsnittet. Ingen oversiktsfil for hela landet - se bygg_rutnat i scripts/05_build_data.py for varfor."
 }

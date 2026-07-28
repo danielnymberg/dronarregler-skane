@@ -151,28 +151,19 @@ INGÅR INTE I DENNA LICENS
 
 
 def bygg_rutnat(features, bbox_rader, geometrier):
-    """Skriver översiktsfilen, visningsrutorna, geometrirutorna och bbox-rutorna.
+    """Skriver visningsrutorna, geometrirutorna och bbox-rutorna.
 
     Se lib/rutnat.py för varför det är två rutstorlekar.
+
+    Det fanns tidigare också en översiktsfil för hela landet, tänkt för utzoomat
+    läge. Den togs bort. Rikstäckande geometri går inte att förenkla hårt utan
+    att bryta kravet att en förenkling aldrig får påstå större utbredning än
+    myndighetens geometri — mätt blev filen 13 MB, och de varianter som var
+    små nog tappade 1 460 av 4 697 områden helt. En karta som tyst utelämnar
+    en tredjedel av områdena är sämre än en karta som säger "zooma in".
     """
-    band = {b["id"]: b for b in CONFIG["zoomband"]}
-    ov = band["oversikt"]
     for katalog in ("rutor", "geom", "bbox"):
         ensure_dir(os.path.join(DATA, katalog))
-
-    # --- översikt: en fil, hela landet, bara områden över tröskeln ---
-    oversikt, utelamnade = [], 0
-    for f in features:
-        if (f["properties"].get("area_ha") or 0) < ov["min_area_ha"]:
-            utelamnade += 1
-            continue
-        enkel, _ = forenkla_geometri(f["geometry"], ov["tolerans_m"])
-        oversikt.append({"type": "Feature", "geometry": enkel,
-                         "properties": f["properties"]})
-    write_json(os.path.join(DATA, "oversikt.json"),
-               {"type": "FeatureCollection", "tolerans_m": ov["tolerans_m"],
-                "min_area_ha": ov["min_area_ha"], "antal_visade": len(oversikt),
-                "antal_utelamnade": utelamnade, "features": oversikt}, compact=True)
 
     # --- visningsrutor (1°), förenklad geometri ---
     per_ruta = {}
@@ -190,12 +181,14 @@ def bygg_rutnat(features, bbox_rader, geometrier):
     # 76 MB. Läggs de i varje ruta de rör kopieras Vindelfjällen in i dussintals
     # rutor och katalogen växer till 386 MB med enskilda rutor på 5,7 MB.
     #
-    # De stora får därför egna filer och refereras från rutan. Geometrin
+    # De stora får därför egna filer och refereras från rutan. Gränsen 10 kB är
+    # mätt: den ger 435 egna filer och 81 MB totalt, mot 41 filer och 118 MB vid
+    # 100 kB. Geometrin
     # förenklas inte: en förenkling som krymper ytan skulle kunna ge svaret
     # "ingen restriktion hittad" åt någon som står strax innanför gränsen, och
     # en som växer ytan går inte att kombinera med meningsfull komprimering.
     ensure_dir(os.path.join(DATA, "geom", "stora"))
-    STOR_GRANS = 100 * 1024
+    STOR_GRANS = 10 * 1024
     stora, per_geom = {}, {}
     for nvrid, geom in geometrier.items():
         if not geom:
@@ -231,10 +224,6 @@ def bygg_rutnat(features, bbox_rader, geometrier):
         "antal_stora_geometrifiler": len(stora),
         "stor_grans_byte": STOR_GRANS,
         "antal_bboxrutor": len(per_bbox),
-        "oversikt_antal": len(oversikt),
-        "oversikt_utelamnade": utelamnade,
-        "oversikt_tolerans_m": ov["tolerans_m"],
-        "oversikt_min_area_ha": ov["min_area_ha"],
     }
 
 
@@ -569,9 +558,8 @@ def main():
 
     rutnat = bygg_rutnat(features, bbox_index, geometrier)
     log(f"  rutnät: {rutnat['antal_visningsrutor']} visningsrutor, "
-        f"{rutnat['antal_geometrirutor']} geometrirutor; översikt "
-        f"{rutnat['oversikt_antal']} områden "
-        f"({rutnat['oversikt_utelamnade']} under {rutnat['oversikt_min_area_ha']} ha)")
+        f"{rutnat['antal_geometrirutor']} geometrirutor, "
+        f"{rutnat['antal_stora_geometrifiler']} stora geometrier i egna filer")
 
     skriv_licens_och_schema(manifest, stats, forenkling)
 

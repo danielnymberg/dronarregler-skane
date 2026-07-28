@@ -4,32 +4,34 @@ Hela landet i en fil fungerar inte på en telefon: rikstäckande geometri är
 tiotals megabyte. Datan delas därför upp så att klienten bara hämtar det den
 behöver just nu.
 
-  oversikt.json        en fil för hela landet, hårt förenklad, bara områden
-                       över en viss storlek. Laddas när kartan är utzoomad.
-  rutor/{ID}.json      visningsgeometri i full upplösning, 1°-rutor. Bara de
-                       rutor som syns i kartfönstret laddas.
+  rutor/{ID}.json      visningsgeometri, 0,5°-rutor. Bara de rutor som syns i
+                       kartfönstret laddas. En hel grad gav rutor på 2,1 MB.
   geom/{ID}.json       ORIGINALGEOMETRI, 0,25°-rutor, för punkt-i-polygon.
   bbox/{ID}.json       omslutande rektanglar, 0,25°-rutor, för att hitta
                        kandidater innan originalgeometrin hämtas.
 
-Två rutstorlekar, av två skäl. Visningsrutorna får vara stora — man ritar ändå
-hela kartfönstret. Geometrirutorna måste vara små, dels för att svaret ska gå
-fort på mobil, dels för att Cloudflare Pages tar max 20 000 filer per
-utrullning: en fil per område hade blivit 10 772 filer utöver lika många
+Två rutstorlekar, av två skäl. Visningsrutorna får vara större — man ritar ändå
+hela kartfönstret. Geometrirutorna måste vara små, dels för att positionssvaret
+ska gå fort på mobil, dels för att Cloudflare Pages tar max 20 000 filer per
+utrullning: en fil per område hade blivit 10 681 filer utöver lika många
 HTML-sidor och spräckt taket. Per-områdesfilerna finns kvar i kodförrådet som
 CC0-produkt, men serveras inte styckvis.
 
 Ett område som spänner över flera rutor läggs i var och en av dem, och
 klienten avdubblerar på NVRID.
 
-Att ett område utelämnas ur översikten är ett synligt tillstånd, inte en tyst
-lucka: kartan skriver ut hur många områden som inte visas vid aktuell zoom.
+Det finns medvetet ingen översiktsfil för hela landet. Rikstäckande geometri
+går inte att förenkla hårt nog utan att antingen påstå större utbredning än
+myndighetens geometri eller tyst tappa en tredjedel av områdena. Är kartutsnittet
+för stort ritar kartan därför ingenting och säger åt användaren att zooma in —
+en tom karta med en förklaring är ärligare än en förenklad bild som utelämnar
+1 460 av 4 697 områden utan att säga det.
 """
 from __future__ import annotations
 
 import math
 
-VISNING_GRADER = 1.0
+VISNING_GRADER = 0.5
 GEOMETRI_GRADER = 0.25
 
 

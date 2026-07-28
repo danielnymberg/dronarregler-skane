@@ -8,6 +8,7 @@ positionssvaret.
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import os
@@ -97,6 +98,25 @@ LAGER_NAMN = {
 E = html.escape
 
 
+def _tillgangsversion():
+    """Kort innehållshash för app.js och style.css.
+
+    Utan den serverar webbläsaren gammal JavaScript efter en uppdatering — det
+    inträffade under utvecklingen och gav ett fel som såg ut att sitta i koden
+    men satt i cachen. Stämpeln gör att en ändrad fil får en ny URL.
+    """
+    h = hashlib.sha256()
+    for namn in ("app.js", "style.css"):
+        sokvag = os.path.join(SITE, "assets", namn)
+        if os.path.exists(sokvag):
+            with open(sokvag, "rb") as fh:
+                h.update(fh.read())
+    return h.hexdigest()[:8]
+
+
+VERSION = _tillgangsversion()
+
+
 def sidmall(*, titel, beskrivning, kanonisk, innehall, bred=False,
             extra_head="", data_datum="", schema=None):
     schema_json = ("\n<script type=\"application/ld+json\">" +
@@ -117,7 +137,7 @@ def sidmall(*, titel, beskrivning, kanonisk, innehall, bred=False,
 <meta property="og:site_name" content="{E(NAMN)}">
 <meta property="og:locale" content="sv_SE">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="/assets/style.css">{extra_head}{schema_json}
+<link rel="stylesheet" href="/assets/style.css?v={VERSION}">{extra_head}{schema_json}
 </head>
 <body>
 <header class="topp">
@@ -391,7 +411,7 @@ def omradessida(o, manifest):
         kanonisk=f"{BAS}/omrade/{o['nvrid']}-{o['slug']}/",
         innehall="\n".join(d), data_datum=datum, schema=schema,
         extra_head='\n<script defer src="/vendor/leaflet/leaflet.js"></script>'
-                   '\n<script defer src="/assets/app.js"></script>'
+                   f'\n<script defer src="/assets/app.js?v={VERSION}"></script>'
                    f'\n<script>window.DK_LFV={json.dumps(CONFIG["lfv_wms"])};</script>')
 
 
@@ -405,7 +425,7 @@ def startsida(manifest, bboxindex):
     huvud = f'''<script>window.DK_LFV={json.dumps(CONFIG["lfv_wms"])};
 window.DK_ANSVARSTEXT={json.dumps(ANSVARSTEXT)};</script>
 <script defer src="/vendor/leaflet/leaflet.js"></script>
-<script defer src="/assets/app.js"></script>'''
+<script defer src="/assets/app.js?v={VERSION}"></script>'''
     kropp = f'''<div id="karta"></div>
 <header class="apptopp">
   <a class="namn" href="/om/">{E(NAMN)}</a>
@@ -447,7 +467,7 @@ window.DK_ANSVARSTEXT={json.dumps(ANSVARSTEXT)};</script>
 <meta property="og:url" content="{BAS}/">
 <meta property="og:locale" content="sv_SE">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v={VERSION}">
 {huvud}
 </head>
 <body class="app">

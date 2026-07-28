@@ -17,9 +17,8 @@
   var DATA = window.DK_DATA_BAS || "/data";
   var LFV = window.DK_LFV || {};
   var LFV_LAGER = "mais:CTR,mais:TIZ,mais:TIA,mais:ATZ,mais:RSTA,mais:DNGA";
-  var VISNING_RUTA = 1.0;        // grader per visningsruta
+  var VISNING_RUTA = 0.5;        // grader per visningsruta
   var GEOM_RUTA = 0.25;          // grader per geometri-/bbox-ruta
-  var DETALJ_FRAN_ZOOM = 9;
 
   var FARG = {
     nationalpark: "#1b6b3a",
@@ -131,8 +130,6 @@
     var laddadeRutor = {};       // rutid -> true
     var ritade = {};             // nvrid -> true
     var visadeFeatures = [];     // för avståndsberäkning
-    var oversiktLagd = false;
-    var oversiktInfo = null;
 
     var statusEl = document.getElementById("kartstatus");
     var svarEl = document.getElementById("svar");
@@ -158,37 +155,32 @@
     }
     function status(text) { statusEl.textContent = text || ""; }
 
+    // Kartan har en enda datakälla: rutnätsfilerna för det synliga utsnittet.
+    // Det fanns tidigare också en översiktsfil för hela landet, men
+    // rikstäckande geometri går inte att förenkla hårt nog utan att antingen
+    // påstå större utbredning än myndighetens geometri eller tyst tappa en
+    // tredjedel av områdena. Är utsnittet för stort säger kartan till i stället.
+    var MAX_RUTOR = 30;
+
     function laddaForVy() {
-      var z = karta.getZoom();
-      if (z < DETALJ_FRAN_ZOOM) {
-        if (oversiktLagd) {
-          status(oversiktInfo);
-          return;
-        }
-        status("Laddar översikt …");
-        return hamta(DATA + "/oversikt.json").then(function (gj) {
-          oversiktLagd = true;
-          laggTill(gj.features);
-          oversiktInfo = gj.antal_utelamnade
-            ? gj.antal_utelamnade + " mindre områden visas först när du zoomar in"
-            : "";
-          status(oversiktInfo);
-        }).catch(function (e) {
-          status("Kartdata kunde inte laddas — tolka inte en tom karta som att " +
-                 "inget är reglerat. (" + e.message + ")");
-        });
+      var rutor = rutorForBounds(karta.getBounds(), VISNING_RUTA);
+      if (rutor.length > MAX_RUTOR) {
+        status("Zooma in för att se skyddade områden. Kartan visar dem område "
+               + "för område — den ritar aldrig en förenklad bild av hela landet.");
+        return;
       }
-      var rutor = rutorForBounds(karta.getBounds(), VISNING_RUTA).filter(function (r) {
-        return !laddadeRutor[r];
-      });
-      if (!rutor.length) { status(""); return; }
+      var nya = rutor.filter(function (r) { return !laddadeRutor[r]; });
+      if (!nya.length) { status(""); return; }
       status("Laddar områden …");
-      return Promise.all(rutor.map(function (r) {
+      return Promise.all(nya.map(function (r) {
         laddadeRutor[r] = true;
         return hamta(DATA + "/rutor/" + r + ".json")
           .then(function (gj) { laggTill(gj.features); })
           .catch(function () { /* ruta utan områden */ });
-      })).then(function () { status(""); });
+      })).then(function () { status(""); }).catch(function (e) {
+        status("Kartdata kunde inte laddas — tolka inte en tom karta som att "
+               + "inget är reglerat. (" + e.message + ")");
+      });
     }
 
     karta.on("moveend zoomend", laddaForVy);
@@ -211,7 +203,7 @@
           "<p>Sök upp området på kartan i stället.</p>"));
         return;
       }
-      status("Hämtar din position …");
+      visaPanel('<p class="laddstatus">Hämtar din position …</p>');
       navigator.geolocation.getCurrentPosition(function (pos) {
         var lat = pos.coords.latitude, lon = pos.coords.longitude;
         minPosition = [lon, lat];
@@ -222,8 +214,9 @@
         karta.setView([lat, lon], 12);
         svaraForPosition(lon, lat);
       }, function (err) {
-        status("");
-        if (!automatiskt) {
+        if (automatiskt) {
+          panelEl.classList.remove("oppen");
+        } else {
           visaPanel(svarBlock("tacks-ej", "Positionen kunde inte hämtas",
             "<p>" + esc(err.message) + " Sök upp området på kartan i stället.</p>"));
         }
@@ -270,8 +263,12 @@
         .then(function (svar) {
           var idx = svar[0], cell = svar[1];
           var omraden = cell.omraden || {};
+          var settNvrid = {};
           var kandidater = (idx.rader || []).filter(function (r) {
-            return lon >= r[6] && lon <= r[8] && lat >= r[7] && lat <= r[9];
+            if (settNvrid[r[0]]) return false;
+            if (!(lon >= r[6] && lon <= r[8] && lat >= r[7] && lat <= r[9])) return false;
+            settNvrid[r[0]] = true;
+            return true;
           });
           // Stora områden ligger i egna filer — hämta bara de som är kandidater.
           var storaKvar = (cell.stora || []).filter(function (nv) {
@@ -299,7 +296,6 @@
             return { nvrid: r[0], slug: r[1], namn: r[2], skyddstyp: r[3],
                      svarslage: r[5], antalCitat: r[10] };
           }), res.rader, res.geometrier);
-          status("");
         })
         .catch(function (e) {
           visaPanel(svarBlock("tacks-ej", "Kontrollen kunde inte genomföras",
@@ -329,9 +325,13 @@
      * annars mot områdets omslutande rektangel — vilket ger ett kortare, alltså
      * försiktigare, avstånd. */
     function narliggande(lon, lat, uteslut, rader, geometrier) {
-      var lista = [];
+      var lista = [], sedda = {};
       rader.forEach(function (r) {
         if (uteslut.indexOf(r[0]) !== -1) return;
+        // Ett område som spänner över flera bbox-rutor förekommer en gång per
+        // ruta. Utan avdubblering listades Östra Kullaberg två gånger.
+        if (sedda[r[0]]) return;
+        sedda[r[0]] = true;
         var g = geometrier[r[0]];
         var d = g ? narmasteHorn(lon, lat, g) : avstandTillBbox(lon, lat, r.slice(6, 10));
         if (d < 10000) {
@@ -346,7 +346,7 @@
     function visaSvar(lon, lat, traffar, rader, geometrier) {
       var h = "";
       if (traffar.length) {
-        var rader = traffar.map(function (o) {
+        var radHtml = traffar.map(function (o) {
           return '<li><a href="/omrade/' + o.nvrid + "-" + o.slug + '/">' +
             esc(o.namn) + "</a> — " + esc(o.skyddstyp) +
             (o.antalCitat ? " · " + o.antalCitat + " citat ur beslutet"
@@ -357,7 +357,7 @@
         h += svarBlock("reglerat", "Reglerat område — läs beslutet",
           "<p>Du står i " + traffar.length +
           (traffar.length === 1 ? " område" : " områden") +
-          " med myndighetsbeslut.</p><ul class=\"lista-omraden\">" + rader + "</ul>");
+          " med myndighetsbeslut.</p><ul class=\"lista-omraden\">" + radHtml + "</ul>");
       } else {
         h += svarBlock("ingen", "Ingen restriktion hittad i de källor tjänsten täcker",
           "<p>Positionen ligger inte inom något skyddat område i tjänstens databas. " +
@@ -394,6 +394,9 @@
 
     laddaForVy();
     hamtaPosition(true);       // fråga direkt — appen handlar om var du står
+    // Kartans statusrad ägs av laddaForVy. Positionsflödet skriver i panelen,
+    // annars skriver de två över varandra och "zooma in"-meddelandet försvinner.
+    karta.on("zoomend", function () { setTimeout(laddaForVy, 0); });
   }
 
   /* --------------------------------------------------------- minikartan */
