@@ -71,6 +71,50 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "id": "a1",
+   "grupp": "Avstånd till människor och bebyggelse",
+   "fraga": "Underkategori A1 — vad gäller närmast människor?",
+   "kalla": "eu947",
+   "referens": "Bilagan, del A, UAS.OPEN.020 punkt 1–3",
+   "text": "UAS.OPEN.020 Drift av UAS i underkategori A1 Drift av UAS i underkategori A1 ska uppfylla samtliga följande villkor: 1. När det gäller obemannade luftfartyg som avses i punkt 5 d ska driften utföras så att fjärrpiloten inte flyger det obemannade luftfartyget över folksamlingar och rimligen kan förvänta sig att luftfartyget inte kommer att flyga över några icke-medverkande personer. Om luftfartyget oväntat flyger över icke-medverkande personer ska fjärrpiloten i största möjliga utsträckning minimera den tid som det obemannade luftfartyget flyger över dessa personer. 2. När det gäller obemannade luftfartyg som avses i punkt 5 a, b och c ska driften utföras på ett sådant sätt att fjärrpiloten får flyga det obemannade luftfartyget över icke-medverkande personer men aldrig över folksamlingar. 3. Genom undantag från artikel 4.1 d ska luftfartyget, när följ mig-läget är aktivt, flygas på ett avstånd av högst 50 meter från fjärrpiloten.",
+   "tecken": 942,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "a2",
+   "grupp": "Avstånd till människor och bebyggelse",
+   "fraga": "Underkategori A2 — hur nära människor får jag flyga?",
+   "kalla": "eu947",
+   "referens": "Bilagan, del A, UAS.OPEN.030 punkt 1",
+   "text": "UAS.OPEN.030 Drift av UAS i underkategori A2 Drift av UAS i underkategori A2 ska uppfylla samtliga följande villkor: 1. Den ska utföras så att det obemannade luftfartyget inte flyger över icke-medverkande personer och på ett säkert horisontellt avstånd på minst 30 meter från dessa personer, varvid fjärrpiloten får minska det horisontella säkerhetsavståndet till som lägst 5 meter från icke-medverkande personer vid drift av ett obemannat luftfartyg som har ett aktiverat låghastighetsläge och efter en utvärdering av situationen i fråga om a) väderförhållanden, b) det obemannade luftfartygets prestanda, och c) segregeringen av det område som överflygs.",
+   "tecken": 656,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "a3",
+   "grupp": "Avstånd till människor och bebyggelse",
+   "fraga": "Underkategori A3 — får jag flyga över villaområden och hamnar?",
+   "kalla": "eu947",
+   "referens": "Bilagan, del A, UAS.OPEN.040 punkt 1–2",
+   "text": "UAS.OPEN.040 Drift av UAS i underkategori A3 Drift av UAS i underkategori A3 ska uppfylla samtliga följande villkor: 1. Den ska utföras i ett område där fjärrpiloten rimligen kan förvänta sig att inga icke-medverkande personer kommer att hotas inom det område där det obemannade luftfartyget flygs under hela den tid som UAS-driften sker. 2. Den ska utföras på ett säkert horisontellt avstånd på minst 150 meter från bostads-, affärs-, industri- eller rekreationsområden.",
+   "tecken": 471,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "aldre-dronare",
+   "grupp": "Avstånd till människor och bebyggelse",
+   "fraga": "Min drönare saknar klassmärkning — vilken underkategori gäller då?",
+   "kalla": "eu947",
+   "referens": "Artikel 20",
+   "text": "UAS-typer i den betydelse som avses i Europaparlamentets och rådets beslut nr 768/2008/EG (9), som inte iakttar reglerna i delegerad förordning (EU) 2019/945 och som inte är privatbyggda ska få fortsätta att användas under följande förhållanden, om de har släppts ut på marknaden före den 1 juli 2022. a) Drift i underkategori A1 enligt del A i bilagan, om det obemannade luftfartyget har en maximal startmassa på under 250 gram, inbegripet nyttolast. b) Drift i underkategori A3 enligt del A i bilagan, om det obemannade luftfartyget har en maximal startmassa på under 25 kg, inbegripet bränsle och nyttolast.",
+   "tecken": 610,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
    "id": "luftrum",
    "grupp": "Luftrum",
    "fraga": "Vad gäller i en kontrollzon (CTR)?",

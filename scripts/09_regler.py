@@ -107,6 +107,39 @@ AVSNITT = [
      "fran": "Om driften av UAS inbegriper att ett obemannat luftfartyg startar",
      "till": "UAS.OPEN.020 Drift av UAS i underkategori A1"},
 
+    # Avstånds- och underkategorireglerna är de som faktiskt biter i tätbebyggt
+    # område, och de saknades i första versionen. Sidan citerade artikel 4 och
+    # höjdgränsen men inte A1/A2/A3 — alltså inte den regel som avgör om man
+    # över huvud taget får flyga i en hamn eller ett villaområde. Att den luckan
+    # fanns märktes först när frågan ställdes rakt ut.
+    {"grupp": "Avstånd till människor och bebyggelse", "id": "a1",
+     "fraga": "Underkategori A1 — vad gäller närmast människor?",
+     "kalla": "eu947", "referens": "Bilagan, del A, UAS.OPEN.020 punkt 1–3",
+     "fran": "UAS.OPEN.020 Drift av UAS i underkategori A1 Drift av UAS i "
+             "underkategori A1 ska uppfylla samtliga följande villkor:",
+     "till": "4. Driften ska utföras av en fjärrpilot som"},
+
+    {"grupp": "Avstånd till människor och bebyggelse", "id": "a2",
+     "fraga": "Underkategori A2 — hur nära människor får jag flyga?",
+     "kalla": "eu947", "referens": "Bilagan, del A, UAS.OPEN.030 punkt 1",
+     "fran": "UAS.OPEN.030 Drift av UAS i underkategori A2 Drift av UAS i "
+             "underkategori A2 ska uppfylla samtliga följande villkor:",
+     "till": "2. Den ska utföras av en fjärrpilot som har satt sig in"},
+
+    {"grupp": "Avstånd till människor och bebyggelse", "id": "a3",
+     "fraga": "Underkategori A3 — får jag flyga över villaområden och hamnar?",
+     "kalla": "eu947", "referens": "Bilagan, del A, UAS.OPEN.040 punkt 1–2",
+     "fran": "UAS.OPEN.040 Drift av UAS i underkategori A3 Drift av UAS i "
+             "underkategori A3 ska uppfylla samtliga följande villkor:",
+     "till": "3. Den ska utföras av en fjärrpilot som har fullbordat"},
+
+    {"grupp": "Avstånd till människor och bebyggelse", "id": "aldre-dronare",
+     "fraga": "Min drönare saknar klassmärkning — vilken underkategori gäller då?",
+     "kalla": "eu947", "referens": "Artikel 20",
+     "fran": "UAS-typer i den betydelse som avses i Europaparlamentets och rådets "
+             "beslut nr 768/2008/EG",
+     "till": "Artikel 21"},
+
     {"grupp": "Luftrum", "id": "luftrum",
      "fraga": "Vad gäller i en kontrollzon (CTR)?",
      "kalla": "tsfs2017110", "referens": "3 §",
@@ -158,6 +191,14 @@ MASTE_FINNAS = {
     "geozoner": ["geografiska UAS-zoner"],
     "skyddsobjekt": ["tillträde med hjälp av en obemannad farkost"],
     "oppen-kategori": ["inom synhåll", "120 meter"],
+    # 150-metersregeln är den enskilt viktigaste meningen på hela sidan för den
+    # som står i en hamn eller ett bostadsområde. Faller den bort ska bygget
+    # avbrytas, inte leverera en tunnare text.
+    "a3": ["minst 150 meter från bostads-, affärs-, industri- eller "
+           "rekreationsområden"],
+    "a2": ["minst 30 meter"],
+    "a1": ["folksamlingar"],
+    "aldre-dronare": ["under 250 gram", "underkategori A3"],
 }
 
 
