@@ -13,6 +13,7 @@ Körs som `make test` eller `python3 tests/test_suite.py [--snabb]`.
 from __future__ import annotations
 
 import argparse
+import html as html_mod
 import importlib.util
 import json
 import os
@@ -465,41 +466,127 @@ def test_c_golden(r):
     if not traffar:
         r.notera("C5: inga tillåtelseformuleringar i dist/ utanför citatblock ✓")
 
-    # C6 Ingen LFV-vektor.
-    misstankta = []
-    # Skanna det som faktiskt bygger och kör tjänsten. tests/ utelämnas — den
-    # här filen innehåller själv mönstren den letar efter.
-    granskade_rotter = [os.path.join(ROOT, d) for d in ("scripts", "site", ".github")]
-    granskade_rotter.append(DIST)
-    monster = [
-        (r"daim\.lfv\.se[^\s\"']*wfs", "anrop mot LFV:s WFS"),
-        (r"service=WFS[^\"']*lfv", "WFS-anrop mot LFV"),
-        (r"lfv[^\n]{0,80}(outputFormat|GetFeature)", "vektoruttag från LFV"),
-    ]
-    for rot in granskade_rotter:
-        if not os.path.isdir(rot):
+    # C6 LFV-licensen.
+    #
+    # Testet vaktade förut regeln "rör aldrig LFV:s vektordata". Den regeln är
+    # medvetet upphävd — se toppen av scripts/08_lfv.py — eftersom ett
+    # rasterlager tjänsten själv inte kan läsa gjorde den ur stånd att svara på
+    # zonfrågan, och därmed värdelös offline.
+    #
+    # Det som ÄR kvar av R5 är licensdisciplinen, och den kontrolleras här. Att
+    # ta bort testet i stället för att skriva om det hade tappat bort just den
+    # delen som fortfarande spelar roll.
+    lfvfil = os.path.join(DIST, "data", "lfv.json")
+    if not os.path.exists(lfvfil):
+        r.notera("C6: inget LFV-lager byggt — hoppar över licenskontrollen")
+    else:
+        with open(lfvfil, encoding="utf-8") as fh:
+            lfv = json.load(fh)
+        r.kolla(lfv.get("licens") == "CC BY-NC-ND 4.0",
+                f"C6: LFV-lagret saknar korrekt licensangivelse: {lfv.get('licens')!r}")
+        r.kolla(bool(lfv.get("attribution")),
+                "C6: LFV-lagret saknar attribution")
+
+        # LFV:s data får inte hamna under tjänstens CC0-deklaration.
+        licensfil = os.path.join(DIST, "data", "LICENSE")
+        if os.path.exists(licensfil):
+            with open(licensfil, encoding="utf-8") as fh:
+                licenstext = fh.read()
+            r.kolla("LFV" in licenstext,
+                    "C6: data/LICENSE nämner inte LFV — CC0-texten måste "
+                    "uttryckligen undanta lagret, annars vidarelicensieras "
+                    "någon annans ND-data")
+
+        # Deras egna tiles får aldrig cachas om och serveras vidare.
+        swfil = os.path.join(DIST, "sw.js")
+        if os.path.exists(swfil):
+            with open(swfil, encoding="utf-8") as fh:
+                sw = fh.read()
+            r.kolla("lfv.se" in sw and "return" in sw,
+                    "C6: service workern måste uttryckligen lämna lfv.se orörd")
+        r.notera(f"C6: LFV-lagret licensmärkt {lfv.get('licens')}, "
+                 f"undantaget CC0, tiles ej omcachade ✓")
+
+    # C9 Rubriken får inte påstå mer än citatet.
+    #
+    # Ett citat utan verifierad föreskriftsinledning kan stå i beslutets SKÄL
+    # och inte i dess föreskrifter. Västra Kullaberg visade det: citatet lyder
+    # "I området finns miljöer som kan utgöra häckningsplatser för fåglar …",
+    # medan rubriken sa "Föreskriften förbjuder störning". 483 av 3 044 områden
+    # gjorde samma övertramp. Där inledningen saknas ska rubriken säga
+    # "Beslutet nämner", inte "Föreskriften".
+    LU = {"uttryckligt-luftfartygsförbud", "start-landningsförbud"}
+    ST = {"störningsförbud-djurliv"}
+    overtramp, provade = [], 0
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden")))[:4000]:
+        o = read_json(os.path.join(DATA, "omraden", fil))
+        lage = (o or {}).get("luftfartslage")
+        if lage not in ("luftfart", "storning"):
             continue
-        for dirpath, _, filnamn in os.walk(rot):
-            if os.path.sep + "data" in dirpath:
-                continue
-            for fn in filnamn:
-                if not fn.endswith((".py", ".js", ".json", ".html", ".yml", ".yaml")):
-                    continue
-                p = os.path.join(dirpath, fn)
-                try:
-                    with open(p, encoding="utf-8", errors="replace") as fh:
-                        text = fh.read()
-                except OSError:
-                    continue
-                if "lfv" not in text.lower():
-                    continue
-                for pattern, varfor in monster:
-                    for hit in re.finditer(pattern, text, re.I):
-                        misstankta.append(f"{os.path.relpath(p, ROOT)}: {varfor} "
-                                          f"({hit.group(0)[:60]!r})")
-    r.kolla(not misstankta, f"C6: möjlig LFV-vektoranvändning: {misstankta}")
-    if not misstankta:
-        r.notera("C6: ingen kod anropar LFV:s WFS eller lagrar LFV-geometri ✓")
+        relevanta = LU if lage == "luftfart" else ST
+        belagd = any(c.get("inledning") for c in (o.get("citat") or [])
+                     if c.get("klassificering") in relevanta)
+        if belagd:
+            continue
+        sida = os.path.join(DIST, "omrade", f"{o['nvrid']}-{o['slug']}", "index.html")
+        if not os.path.exists(sida):
+            continue
+        provade += 1
+        with open(sida, encoding="utf-8") as fh:
+            huvud = fh.read().split("Ur beslutet")[0]
+        if "Föreskriften" in huvud or "Föreskrifterna" in huvud:
+            overtramp.append(o["nvrid"])
+    r.kolla(not overtramp,
+            f"C9: rubriken kallar text 'föreskrift' utan belagd "
+            f"föreskriftsinledning: {overtramp[:8]}")
+    if not overtramp:
+        r.notera(f"C9: {provade} områden utan belagd föreskriftsinledning — "
+                 f"ingen rubrik påstår mer än citatet ✓")
+
+    # C7 Regelsidans citat.
+    reglerfil = os.path.join(DIST, "data", "regler.json")
+    if not os.path.exists(reglerfil):
+        r.kolla(False, "C7: data/regler.json saknas — kör scripts/09_regler.py")
+    else:
+        with open(reglerfil, encoding="utf-8") as fh:
+            regler = json.load(fh)
+        regelsida = os.path.join(DIST, "regler", "index.html")
+        r.kolla(os.path.exists(regelsida), "C7: /regler/ byggdes inte")
+        if os.path.exists(regelsida):
+            with open(regelsida, encoding="utf-8") as fh:
+                sidtext = html_mod.unescape(re.sub(r"<[^>]+>", " ", fh.read()))
+            sidtext = re.sub(r"\s+", " ", sidtext)
+            saknade = [a["id"] for a in regler["avsnitt"]
+                       if re.sub(r"\s+", " ", a["text"]) not in sidtext]
+            r.kolla(not saknade,
+                    f"C7: författningstext förvanskad på väg ut till sidan: {saknade}")
+            r.notera(f"C7: {len(regler['avsnitt'])} författningsavsnitt ur "
+                     f"{len(regler['kallor'])} källor, ordagranna hela vägen ut ✓")
+
+    # C8 PWA-skalet hänger ihop.
+    manifestfil = os.path.join(DIST, "manifest.webmanifest")
+    swfil = os.path.join(DIST, "sw.js")
+    if not (os.path.exists(manifestfil) and os.path.exists(swfil)):
+        r.kolla(False, "C8: manifest eller service worker saknas i dist/")
+    else:
+        with open(manifestfil, encoding="utf-8") as fh:
+            mf = json.load(fh)
+        saknade_ikoner = [i["src"] for i in mf.get("icons", [])
+                          if not os.path.exists(os.path.join(DIST, i["src"].lstrip("/")))]
+        r.kolla(not saknade_ikoner, f"C8: manifestet pekar på ikoner som saknas: {saknade_ikoner}")
+        with open(swfil, encoding="utf-8") as fh:
+            sw = fh.read()
+        r.kolla("__VERSION__" not in sw,
+                "C8: service workern har kvar versionsplatshållaren — cachen "
+                "skulle aldrig bytas ut vid utrullning")
+        # Det service workern lovar cacha måste finnas.
+        lovade = re.findall(r'"(/[^"]*?)"', sw.split("var OFFLINEDATA")[0])
+        brutna = [u for u in lovade
+                  if u.endswith((".json", ".png", ".css", ".js", ".webmanifest"))
+                  and not os.path.exists(os.path.join(DIST, u.split("?")[0].lstrip("/")))]
+        r.kolla(not brutna, f"C8: service workern förcachar filer som saknas: {brutna}")
+        r.notera(f"C8: manifest, {len(mf.get('icons', []))} ikoner och versionsstämplad "
+                 f"service worker på plats ✓")
 
 
 # ---------------------------------------------------------------- D

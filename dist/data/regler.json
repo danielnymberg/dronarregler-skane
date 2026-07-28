@@ -1,0 +1,140 @@
+{
+ "schema_version": 1,
+ "hamtningsdatum": "2026-07-28",
+ "kallor": {
+  "eu947": {
+   "titel": "Kommissionens genomförandeförordning (EU) 2019/947",
+   "kortnamn": "EU 2019/947",
+   "beskrivning": "om regler och förfaranden för drift av obemannade luftfartyg",
+   "myndighet": "Europeiska kommissionen",
+   "url": "https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX:32019R0947",
+   "hamtad_fran": "https://publications.europa.eu/resource/cellar/819291ca-8c1c-11e9-9369-01aa75ed71a1",
+   "sha256": "8b64ad9487bed41a4b5a90a01e1ebe9f395eaa9ccc496a102315494a5d3193c4",
+   "hamtad": "2026-07-28",
+   "tecken": 85054
+  },
+  "tsfs2017110": {
+   "titel": "Transportstyrelsens föreskrifter om obemannade luftfartyg",
+   "kortnamn": "TSFS 2017:110",
+   "beskrivning": "de svenska tilläggsreglerna, bl.a. om luftrum",
+   "myndighet": "Transportstyrelsen",
+   "url": "https://www.transportstyrelsen.se/TSFS/TSFS%202017_110.pdf",
+   "hamtad_fran": "https://www.transportstyrelsen.se/TSFS/TSFS%202017_110.pdf",
+   "sha256": "4e46980776db6b8a88086fc2a11955950bf6f328f5e2ac10bca09c81703bb81a",
+   "hamtad": "2026-07-28",
+   "tecken": 93060
+  },
+  "skyddslagen": {
+   "titel": "Skyddslag (2010:305)",
+   "kortnamn": "Skyddslagen",
+   "beskrivning": "skyddsobjekt, tillträdes- och avbildningsförbud",
+   "myndighet": "Sveriges riksdag",
+   "url": "https://rkrattsbaser.gov.se/sfst?bet=2010:305",
+   "hamtad_fran": "https://rkrattsbaser.gov.se/sfst?bet=2010:305",
+   "sha256": "f96a48b8768cfb97cecc6fefa224c9d0d3fc8d22b5e243b070ca9a731a5dff1f",
+   "hamtad": "2026-07-28",
+   "tecken": 18627
+  },
+  "luftfartslagen": {
+   "titel": "Luftfartslag (2010:500)",
+   "kortnamn": "Luftfartslagen",
+   "beskrivning": "grundläggande krav på luftfart över svenskt område",
+   "myndighet": "Sveriges riksdag",
+   "url": "https://rkrattsbaser.gov.se/sfst?bet=2010:500",
+   "hamtad_fran": "https://rkrattsbaser.gov.se/sfst?bet=2010:500",
+   "sha256": "9ea16db218e7572bfd437ecca52f023a3d3acdc25d39367f18098ffa4c579afc",
+   "hamtad": "2026-07-28",
+   "tecken": 97289
+  }
+ },
+ "avsnitt": [
+  {
+   "id": "oppen-kategori",
+   "grupp": "Grunderna",
+   "fraga": "Vad krävs för att flygningen ska räknas som ”öppen kategori”?",
+   "kalla": "eu947",
+   "referens": "Artikel 4.1",
+   "text": "Drift av UAS ska klassificeras som drift i den ”öppna” kategorin enbart om följande villkor är uppfyllda: a) UAS:et ingår i en av de klasser som anges i delegerad förordning (EU) 2019/945 eller är privatbyggt eller uppfyller villkoren i artikel 20. b) Det obemannade luftfartygets maximala startmassa underskrider 25 kg. c) Fjärrpiloten ser till att det obemannade luftfartyget flyger på ett säkert avstånd från människor och inte flyger över folksamlingar. d) Fjärrpiloten har hela tiden det obemannade luftfartyget inom synhåll, utom när det flygs i följ mig-läge eller när en observatör av det obemannade luftfartyget används i enlighet med del A i bilagan. e) Under flygningen hålls det obemannade luftfartyget på ett avstånd av högst 120 meter från den närmsta punkten på jordens yta enligt del A i bilagan, utom när det flyger över ett hinder. f) Under flygningen bär det obemannade luftfartyget inte på något farligt gods och släpper inte ut något material.",
+   "tecken": 964,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "hojd",
+   "grupp": "Grunderna",
+   "fraga": "Hur högt får jag flyga?",
+   "kalla": "eu947",
+   "referens": "Bilagan, del A, UAS.OPEN.010 punkt 2–4",
+   "text": "Om driften av UAS inbegriper att ett obemannat luftfartyg startar från en naturlig höjd i terrängen eller över en terräng med naturliga höjder, ska det obemannade luftfartyget hållas inom högst 120 meter från den närmsta punkten på jordytan. Mätningen av avståndet ska anpassas efter terrängens geografiska egenskaper, exempelvis huruvida den utgörs av slätter, kullar eller berg. 3. När ett obemannat luftfartyg flygs inom ett horisontellt avstånd på 50 meter från ett artificiellt hinder som är högre än 105 meter får den maximala höjden på UAS-flygningen höjas upp till 15 meter ovanför hindret, på begäran av den enhet som ansvarar för hindret. 4. Genom undantag från punkt 2 får obemannade segelflygplan med en maximal startmassa inklusive nyttolast på under 10 kg flygas på ett avstånd som överskrider 120 meter från den närmsta punkten på jordytan, om det obemannade segelflygplanet inte vid något tillfälle flyger på en nivå högre än 120 meter ovanför fjärrpiloten.",
+   "tecken": 973,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "luftrum",
+   "grupp": "Luftrum",
+   "fraga": "Vad gäller i en kontrollzon (CTR)?",
+   "kalla": "tsfs2017110",
+   "referens": "3 §",
+   "text": "3 § Flygning i kontrollerat luftrum får bara ske efter särskilt tillstånd av och på de villkor som lämnas från berörd flygkontrollenhet för det aktuella luftrummet (klarering). För flygningar med ett obemannat luftfartyg på lägre höjd än 10 meter över marken inom en kontrollzon på de militära flygplatserna Karlsborg, Linköping/Malmen, Linköping/SAAB, Luleå/Kallax, Ronneby, Såtenäs, Uppsala, Vidsel, Visby, Hagshult och Jokkmokk krävs ingen klarering om villkoren i fjärde stycket är uppfyllda. Inom övriga kontrollzoner än de som anges i andra stycket krävs ingen klarering för flygningar med ett obemannat luftfartyg på lägre höjd än 50 meter över marken om villkoren i fjärde stycket är uppfyllda. Följande villkor ska vara uppfyllda för det obemannade luftfartyget: 1. Att det obemannade luftfartygets hastighet inte överstiger 25 meter/ sekund (50 knop eller 90 kilometer/timme). 2. Att det obemannade luftfartyget inte flygs närmare än 5 km från någon del av flygplatsens start- och landningsbana/or. Se bilaga 1 för instruktioner om avståndsmätning till start- och landningsbana. Med flygplats avses den flygplats för vilken kontrollzonen/trafikinformationszonen är upprättad.",
+   "tecken": 1185,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "tiz",
+   "grupp": "Luftrum",
+   "fraga": "Vad gäller i trafikinformationszon (TIZ) och trafikinformationsområde (TIA)?",
+   "kalla": "tsfs2017110",
+   "referens": "4 §",
+   "text": "4 § För flygning i trafikinformationszon (TIZ) samt trafikinformationsområde (TIA) ska piloten upprätthålla dubbelriktad radioförbindelse, eller motsvarande, efter överenskommelse med AFIS-enheten. Inom TIZ krävs inte dubbelriktad radioförbindelse för flygningar med ett obemannat luftfartyg på lägre höjd än 50 meter över marken om villkoren i 3 § fjärde stycket är uppfyllda.",
+   "tecken": 377,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "rd-omrade",
+   "grupp": "Luftrum",
+   "fraga": "Vad gäller i restriktionsområde (R) och farligt område (D)?",
+   "kalla": "tsfs2017110",
+   "referens": "10 §",
+   "text": "10 § Flygning i restriktionsområde (R-område) och farligt område (D-område) får bara ske efter tillstånd i enlighet med AIP ENR 5.1.",
+   "tecken": 132,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "atz",
+   "grupp": "Luftrum",
+   "fraga": "Vad gäller i trafikzon (ATZ)?",
+   "kalla": "tsfs2017110",
+   "referens": "11 §",
+   "text": "11 § Flygning i trafikzon (ATZ) får ske endast efter samråd med berörd flygplats.",
+   "tecken": 81,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "geozoner",
+   "grupp": "Zoner och skyddsobjekt",
+   "fraga": "Vem bestämmer var det finns drönarzoner, och vad får de bestämma?",
+   "kalla": "eu947",
+   "referens": "Artikel 15",
+   "text": "1. När medlemsstaterna för ändamål som avser säkerhet, luftfartsskydd, personlig integritet eller miljö fastställer geografiska UAS-zoner får de a) förbjuda viss eller all drift av UAS, ange särskilda villkor för viss eller all drift av UAS eller kräva att operatörer ansöker om ett operativt tillstånd i förväg för viss eller all drift av UAS, b) ange att drift av UAS ska uppnå vissa angivna miljönormer, c) medge tillträde för enbart vissa klasser av UAS, d) medge tillträde enbart för UAS som är utrustade med vissa tekniska egenskaper, i synnerhet system för fjärridentifiering eller geomedvetenhet. 2. På grundval av en riskbedömning som utförts av den behöriga myndigheten får medlemsstaterna utse vissa geografiska zoner där drift av UAS är undantagen från ett eller flera av kraven för den ”öppna” kategorin. 3. När medlemsstaterna anger geografiska UAS-zoner i enlighet med punkterna 1 eller 2 ska de för ändamål som avser geomedvetenhet säkerställa att informationen om dessa geografiska UAS-zoner, inbegripet deras giltighetstid, offentliggörs i ett gemensamt och unikt digitalt format.",
+   "tecken": 1098,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "id": "skyddsobjekt",
+   "grupp": "Zoner och skyddsobjekt",
+   "fraga": "Vad gäller vid ett skyddsobjekt?",
+   "kalla": "skyddslagen",
+   "referens": "7 §",
+   "text": "7 § Ett beslut om skyddsobjekt innebär att obehöriga inte har tillträde till skyddsobjektet. Tillträdesförbudet omfattar även tillträde med hjälp av en obemannad farkost. Genom ett särskilt beslut får tillträdesförbudet förenas med ett förbud mot att göra avbildningar, beskrivningar eller mätningar av eller inom skyddsobjektet. Om det räcker för att tillgodose skyddsbehovet, får tillträdesförbudet ersättas av ett avbildningsförbud eller av ett förbud mot att bada, dyka, ankra eller fiska. Lag (2019:696).",
+   "tecken": 509,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  }
+ ]
+}

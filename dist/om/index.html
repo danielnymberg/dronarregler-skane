@@ -13,7 +13,7 @@
 <meta property="og:site_name" content="Drönarkoll">
 <meta property="og:locale" content="sv_SE">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="/assets/style.css?v=e19ad6a4">
+<link rel="stylesheet" href="/assets/style.css?v=34f84add">
 </head>
 <body>
 <header class="topp">
@@ -21,6 +21,7 @@
     <a class="logotyp" href="/">Drönarkoll</a>
     <nav>
       <a href="/">Karta</a>
+      <a href="/regler/">Reglerna</a>
       <a href="/omraden/">Alla områden</a>
       <a href="/kallor/">Källor och täckning</a>
       <a href="/om/">Om tjänsten</a>
@@ -28,24 +29,25 @@
     <span class="tagline">Vad säger föreskrifterna i skyddad natur?</span>
   </div>
 </header>
-<div class="dataalder"><div class="wrap">Data senast uppdaterad: <strong>2026-07-27</strong></div></div>
+<div class="dataalder"><div class="wrap">Data senast uppdaterad: <strong>2026-07-28</strong></div></div>
 <main class="wrap">
 <h1>Om Drönarkoll</h1>
 <p>Tjänsten visar var det finns skyddade naturområden vars myndighetsbeslut kan innehålla föreskrifter som berör drönarflygning, och citerar föreskrifterna <strong>ordagrant</strong> ur besluten. Den tolkar dem inte och ger inga klartecken. Gratis, reklamfri, utan spårning.</p>
 <h2>Tre svar, aldrig ett fjärde</h2><ol><li><strong>Reglerat område — läs beslutet.</strong> Med ordagranna citat och länk till originalbeslutet.</li><li><strong>Ingen restriktion hittad i de källor tjänsten täcker.</strong> Ett besked om vad databasen innehåller, inte om din flygning.</li><li><strong>Denna källa täcks inte här.</strong> Per rättskälla — framför allt luftrummet, som tjänsten inte har i sin databas.</li></ol>
 <h2>Så tas citaten fram</h2><ol><li>Områdena hämtas ur Naturvårdsverkets naturvårdsregister via öppet API. Geometrin används precis som myndigheten levererat den.</li><li>Beslutsdokumenten laddas ned från Naturvårdsverkets dokumentarkiv. Inskannade original OCR-tolkas på svenska.</li><li>Föreskriftspunkter som kan beröra flygning skärs ut som sammanhängande delsträngar ur dokumentets text. Ingen text skrivs om eller sätts ihop från flera ställen.</li><li>Ett fristående kontrollskript strängmatchar varje citat mot källdokumentet. Håller citatet inte måttet kastas det, och området visas med enbart länken.</li></ol>
 <h2>Vad tjänsten aldrig gör</h2><ul><li>Ritar egna zoner, buffertar eller cirklar kring något.</li><li>Skriver om en föreskrift med egna ord.</li><li>Ger ett samlat omdöme om huruvida en flygning är i sin ordning.</li><li>Spårar besökare eller visar reklam.</li></ul>
-<h2>Siffror vid senaste bygget</h2><div class="tabell-scroll"><table><tbody><tr><th>Områden i databasen</th><td>10681</td></tr><tr><th>Citat som visas</th><td>0</td></tr><tr><th>Citat som klarade ordagrann kontroll</th><td>0.0 %</td></tr><tr><th>Data hämtad</th><td>2026-07-27</td></tr></tbody></table></div><p>Mer i <a href="/kallor/">källor och täckning</a>.</p>
+<h2>Siffror vid senaste bygget</h2><div class="tabell-scroll"><table><tbody><tr><th>Områden i databasen</th><td>10681</td></tr><tr><th>Citat som visas</th><td>20564</td></tr><tr><th>Citat som klarade ordagrann kontroll</th><td>99.9 %</td></tr><tr><th>Data hämtad</th><td>2026-07-28</td></tr></tbody></table></div><p>Mer i <a href="/kallor/">källor och täckning</a>.</p>
 <h2>Hitta fel?</h2><p><a href="https://github.com/danielnymberg/dronarregler-skane/issues/new" rel="noopener">Öppna ett ärende i tjänstens öppna kodförråd.</a> Varje bekräftat fel blir ett regressionstest innan det rättas.</p>
-<p class="ansvar">Den här tjänsten sammanställer och citerar offentliga myndighetsbeslut — den tolkar dem inte och ger inga klartecken. Citaten är maskinellt verifierade mot källdokumenten, men fel kan förekomma och regler kan ha ändrats efter hämtningsdatumet. Luftrumsregler (flygplatser, restriktionsområden, NOTAM, geografiska UAS-zoner) omfattas inte av tjänstens databas — kontrollera alltid LFV:s drönarkarta före flygning. Som fjärrpilot är du ensam ansvarig för att din flygning följer gällande regler. Läs alltid det länkade originalbeslutet.</p>
+<p class="ansvar">Den här tjänsten sammanställer och citerar offentliga myndighetsbeslut — den tolkar dem inte och ger inga klartecken. Citaten är maskinellt verifierade mot källdokumenten, men fel kan förekomma och regler kan ha ändrats efter hämtningsdatumet. Luftrumszoner visas som de publiceras av LFV, men tillfälliga restriktioner, NOTAM och militär verksamhet omfattas inte — kontrollera alltid LFV:s drönarkarta före flygning. Som fjärrpilot är du ensam ansvarig för att din flygning följer gällande regler. Läs alltid det länkade originalbeslutet.</p>
 </main>
 <footer class="botten">
   <div class="wrap">
     <p>Drönarkoll är gratis och reklamfri. Ingen spårning, inga analysverktyg,
     inga cookies utöver tekniskt nödvändiga.</p>
     <p>Områdesdata: Naturvårdsverkets naturvårdsregister (CC0).
-    Luftrumslagret: © LFV (CC BY-NC-ND 4.0) — visas som raster direkt
-    från LFV:s server. Tjänstens egen databas publiceras under CC0.</p>
+    Luftrumslagret: © LFV (CC BY-NC-ND 4.0) — hämtat ur LFV:s DAIM.
+    Det lagret omfattas <strong>inte</strong> av tjänstens CC0-publicering.
+    Tjänstens egen databas publiceras under CC0.</p>
     <p><a href="https://github.com/danielnymberg/dronarregler-skane">Källkod och databas</a> ·
     <a href="/kallor/">Källor och täckning</a> ·
     <a href="https://github.com/danielnymberg/dronarregler-skane/issues/new">Rapportera fel</a></p>

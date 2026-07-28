@@ -68,18 +68,25 @@ def _throttle(host: str, min_interval: float):
 
 
 def fetch(url: str, *, min_interval: float = None, timeout: int = 120,
-          retries: int = 3, accept: str = None) -> bytes:
-    """Hämta en URL med throttling, beskrivande User-Agent och retry."""
+          retries: int = 3, accept: str = None, headers: dict = None) -> bytes:
+    """Hämta en URL med throttling, beskrivande User-Agent och retry.
+
+    `headers` finns för källor som kräver mer än Accept — EU:s publikationsbyrå
+    svarar 400 utan Accept-Language, eftersom samma dokument-id finns i 24
+    språkversioner och servern vägrar gissa vilken som avses.
+    """
     if min_interval is None:
         min_interval = CONFIG["throttle_api_s"]
     host = urllib.parse.urlsplit(url).netloc
     last_err = None
     for attempt in range(retries):
         _throttle(host, min_interval)
-        req = urllib.request.Request(url, headers={
+        hdr = {
             "User-Agent": CONFIG["user_agent"],
             "Accept": accept or "*/*",
-        })
+        }
+        hdr.update(headers or {})
+        req = urllib.request.Request(url, headers=hdr)
         try:
             ctx = ssl.create_default_context()
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:

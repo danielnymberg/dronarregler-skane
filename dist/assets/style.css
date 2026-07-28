@@ -1,3 +1,13 @@
+/* Färgen bär betydelse här, så den är inte dekoration.
+ *
+ *   forbud   röd     föreskriften nämner luftfart, eller LFV-zon
+ *   storning orange   störningsförbud som kan träffa en drönare
+ *   last     blå      läst, ingenting om luftfart
+ *   okant    grå      inte läst — en lucka, inte ett svar
+ *   ingen    neutral  ingen träff
+ *
+ * Grönt förekommer avsiktligt inte i skalan. Tjänsten ger inga klartecken, och
+ * en grön yta hade sagt det utan ord. */
 :root {
   --bg: #ffffff;
   --bg-mjuk: #f4f6f8;
@@ -5,10 +15,22 @@
   --text-svag: #4d5b6b;
   --linje: #d4dbe3;
   --lank: #0b4f8a;
-  --reglerat-bg: #fdf3e3;
-  --reglerat-kant: #b06d00;
+  --marke: #0b2d4a;
+
+  --forbud-bg: #fdecea;
+  --forbud-kant: #c62828;
+  --storning-bg: #fdf3e3;
+  --storning-kant: #e07b00;
+  --last-bg: #eaf1f8;
+  --last-kant: #3f6fa8;
+  --okant-bg: #f0f1f3;
+  --okant-kant: #7a7a7a;
   --ingen-bg: #eef3f7;
   --ingen-kant: #4a6a86;
+
+  /* Bakåtkompatibla namn — dokumentsidorna använder dem alltjämt. */
+  --reglerat-bg: var(--storning-bg);
+  --reglerat-kant: var(--storning-kant);
   --tacks-ej-bg: #f2eef7;
   --tacks-ej-kant: #6b5a8a;
   --ocr-bg: #fff8e1;
@@ -25,10 +47,21 @@
     --text-svag: #a9b8c6;
     --linje: #2e3a47;
     --lank: #7cc0ff;
-    --reglerat-bg: #33270f;
-    --reglerat-kant: #d9a23d;
+    --marke: #0b2d4a;
+
+    --forbud-bg: #3a1717;
+    --forbud-kant: #ef5350;
+    --storning-bg: #33270f;
+    --storning-kant: #d9a23d;
+    --last-bg: #17222f;
+    --last-kant: #7fa8d8;
+    --okant-bg: #1e2126;
+    --okant-kant: #9aa3ad;
     --ingen-bg: #1b2530;
     --ingen-kant: #7fa3c2;
+
+    --reglerat-bg: var(--storning-bg);
+    --reglerat-kant: var(--storning-kant);
     --tacks-ej-bg: #241f30;
     --tacks-ej-kant: #a894d0;
     --ocr-bg: #2c2410;
@@ -104,17 +137,74 @@ body.app { overflow: hidden; }
 #lagerpanel.oppen { display: block; }
 #lagerpanel label { display: flex; gap: 0.45rem; align-items: center; font-size: 0.92rem; }
 
+#lagerpanel .lagermeta {
+  margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--text-svag);
+  max-width: 16rem;
+}
+
+#natstatus {
+  position: absolute; top: 3.1rem; left: 50%; transform: translateX(-50%);
+  z-index: 850; max-width: calc(100vw - 1.5rem);
+  background: var(--okant-bg); border: 1px solid var(--okant-kant);
+  color: var(--text); border-radius: 8px;
+  padding: 0.35rem 0.7rem; font-size: 0.82rem;
+}
+
+/* Den stora knappraden längst ned. Tumzonen på en telefon är nederkanten, och
+ * de här två knapparna är det man faktiskt trycker på ute i fält. */
+.knapprad {
+  position: absolute; left: 0; right: 0; z-index: 850;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  display: flex; gap: 0.6rem; justify-content: center;
+  padding: 0 1rem; pointer-events: none;
+}
+.knapprad .storknapp { pointer-events: auto; }
+.storknapp {
+  font: inherit; font-weight: 600; font-size: 1rem; cursor: pointer;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--linje); border-radius: 999px;
+  padding: 0.75rem 1.4rem; min-height: 3rem;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.22);
+  display: inline-flex; align-items: center; gap: 0.5rem;
+}
+.storknapp.primar { background: var(--lank); color: #fff; border-color: var(--lank); }
+.storknapp[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.vaktprick {
+  width: 0.7rem; height: 0.7rem; border-radius: 50%;
+  background: var(--okant-kant); flex: none;
+}
+.storknapp.vakt.aktiv {
+  background: var(--forbud-kant); color: #fff; border-color: var(--forbud-kant);
+}
+.storknapp.vakt.aktiv .vaktprick { background: #fff; animation: puls 1.6s infinite; }
+@keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) {
+  .storknapp.vakt.aktiv .vaktprick { animation: none; }
+}
+
 /* svarspanelen — ligger över kartan, inte bredvid */
-#panel {
+.panel {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 900;
-  max-height: 72dvh; overflow-y: auto;
+  max-height: 78dvh; overflow-y: auto;
   background: var(--bg); border-top: 1px solid var(--linje);
   border-radius: 14px 14px 0 0; box-shadow: var(--skugga);
   transform: translateY(101%); transition: transform 0.22s ease;
-  padding: 0.5rem 1rem 1.5rem;
+  padding: 0.5rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
 }
-#panel.oppen { transform: translateY(0); }
-#panel .handtag {
+.panel.oppen { transform: translateY(0); }
+/* Färgat band i panelens överkant: svarsläget syns innan man läst ett ord. */
+.panel::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  border-radius: 14px 14px 0 0; background: transparent;
+}
+.panel.niva-0::before { background: var(--forbud-kant); }
+.panel.niva-1::before { background: var(--storning-kant); }
+.panel.niva-2::before { background: var(--okant-kant); }
+.panel.niva-3::before { background: var(--last-kant); }
+.panel.niva-4::before { background: var(--ingen-kant); }
+
+.panel .handtag {
   width: 2.5rem; height: 4px; border-radius: 2px; background: var(--linje);
   margin: 0.25rem auto 0.5rem;
 }
@@ -123,14 +213,102 @@ body.app { overflow: hidden; }
   background: none; border: 0; font-size: 1.4rem; line-height: 1;
   color: var(--text-svag); cursor: pointer; padding: 0.2rem 0.4rem;
 }
-#panel h2 { font-size: 1rem; margin: 1rem 0 0.3rem; }
+.panel h2 { font-size: 1rem; margin: 1rem 0 0.3rem; }
+
 @media (min-width: 46rem) {
-  #panel {
-    left: auto; right: 1rem; bottom: 1rem; width: 26rem;
-    border-radius: 12px; max-height: calc(100dvh - 6rem);
+  .panel {
+    left: auto; right: 1rem; bottom: 1rem; width: 27rem;
+    border-radius: 12px; max-height: calc(100dvh - 8rem);
     transform: translateY(calc(100% + 2rem));
   }
+  .knapprad { justify-content: flex-start; padding-left: 1rem; }
 }
+
+/* ---------------------------------------------- posterna i svarspanelen */
+.post {
+  border: 1px solid var(--linje); border-left-width: 5px;
+  border-radius: 6px; padding: 0.6rem 0.8rem; margin: 0.7rem 0;
+}
+.post-lfv, .post-luftfart { border-left-color: var(--forbud-kant); background: var(--forbud-bg); }
+.post-storning { border-left-color: var(--storning-kant); background: var(--storning-bg); }
+.post-last-annat, .post-last-tomt { border-left-color: var(--last-kant); background: var(--last-bg); }
+.post-olast, .post-utan-dokument { border-left-color: var(--okant-kant); background: var(--okant-bg); }
+.post-ingen { border-left-color: var(--ingen-kant); background: var(--ingen-bg); }
+
+.posttopp { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.2rem; }
+.posttopp strong { font-size: 1rem; }
+.post .skyddstyp { margin: 0.1rem 0 0.4rem; font-size: 0.88rem; color: var(--text-svag); }
+.post .kallrad { margin: 0.4rem 0 0; font-size: 0.82rem; color: var(--text-svag); }
+
+.lagerkod {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em;
+  background: var(--forbud-kant); color: #fff;
+  border-radius: 4px; padding: 0.1rem 0.35rem; flex: none;
+}
+.prick {
+  width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none;
+  background: var(--okant-kant); display: inline-block;
+}
+.prick-luftfart { background: var(--forbud-kant); }
+.prick-storning { background: var(--storning-kant); }
+.prick-last-annat, .prick-last-tomt { background: var(--last-kant); }
+.prick-olast, .prick-utan-dokument { background: var(--okant-kant); }
+
+.fakta { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.6rem; margin: 0.3rem 0; font-size: 0.88rem; }
+.fakta dt { color: var(--text-svag); }
+.fakta dd { margin: 0; }
+.lfvkommentar {
+  margin: 0.4rem 0 0; padding-left: 0.7rem;
+  border-left: 3px solid var(--forbud-kant);
+  font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem;
+  white-space: pre-wrap;
+}
+.narrubrik { margin-top: 1.2rem; }
+.notis { font-size: 0.85rem; color: var(--text-svag); }
+.ocr { font-style: italic; }
+
+/* ------------------------------------------------------- friskrivningen */
+body.grindad { overflow: hidden; }
+.grind {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(6, 18, 30, 0.72);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem; overflow-y: auto;
+}
+.grindkort {
+  background: var(--bg); color: var(--text);
+  border-radius: 14px; padding: 1.4rem 1.3rem;
+  max-width: 32rem; width: 100%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  max-height: calc(100dvh - 2rem); overflow-y: auto;
+}
+.grindkort h1 { margin: 0 0 0.8rem; font-size: 1.35rem; }
+.grindlista { list-style: none; padding: 0; margin: 0 0 1rem; }
+.grindlista li { padding: 0.55rem 0; border-bottom: 1px solid var(--linje); }
+.grindlista strong { display: block; font-size: 0.98rem; }
+.grindlista span { font-size: 0.9rem; color: var(--text-svag); }
+.grindval {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  margin: 0 0 1rem; font-size: 0.93rem;
+}
+.grindval input { margin-top: 0.25rem; width: 1.15rem; height: 1.15rem; flex: none; }
+.grindkort .storknapp { width: 100%; justify-content: center; }
+.grindfot { margin: 0.9rem 0 0; font-size: 0.83rem; color: var(--text-svag); }
+
+/* --------------------------------------------------------- regelsidan */
+.regelnav ul {
+  list-style: none; padding: 0; margin: 1rem 0 2rem;
+  display: grid; gap: 0.35rem;
+}
+.regelnav li { padding-left: 0.9rem; text-indent: -0.9rem; }
+.regelnav li::before { content: "▸ "; color: var(--text-svag); }
+.regelavsnitt { margin: 1.6rem 0; scroll-margin-top: 1rem; }
+.regelavsnitt h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+.regelavsnitt .citat blockquote { border-left-color: var(--last-kant); }
+.ingress { font-size: 1.05rem; }
+.kallista { padding-left: 1.1rem; }
+.kallista li { margin-bottom: 0.5rem; }
+figcaption { font-size: 0.85rem; color: var(--text-svag); margin-top: 0.3rem; padding-left: 0.9rem; }
 
 /* ===================================================== dokumentsidorna */
 header.topp { border-bottom: 1px solid var(--linje); background: var(--bg-mjuk); }
@@ -159,6 +337,10 @@ h3 { font-size: 1rem; margin: 1.5rem 0 0.3rem; font-weight: 600; }
 .svar-reglerat { background: var(--reglerat-bg); border-color: var(--reglerat-kant); }
 .svar-ingen    { background: var(--ingen-bg);    border-color: var(--ingen-kant); }
 .svar-tacks-ej { background: var(--tacks-ej-bg); border-color: var(--tacks-ej-kant); }
+.svar-forbud   { background: var(--forbud-bg);   border-color: var(--forbud-kant); }
+.svar-storning { background: var(--storning-bg); border-color: var(--storning-kant); }
+.svar-last     { background: var(--last-bg);     border-color: var(--last-kant); }
+.svar-okant    { background: var(--okant-bg);    border-color: var(--okant-kant); }
 
 .ocr-varning {
   background: var(--ocr-bg); border: 1px solid var(--ocr-kant);

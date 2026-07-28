@@ -15,6 +15,8 @@ UNDERLIGGANDE KÄLLOR
   lagen (1960:729).
 
 INGÅR INTE I DENNA LICENS
-- LFV:s luftrumsdata. Den visas i tjänsten enbart som rasterlager direkt från
-  LFV:s egen WMS-server under CC BY-NC-ND 4.0 och finns inte i den här
-  katalogen. Ingen LFV-geometri har lagrats, bearbetats eller återpublicerats.
+- LFV:s luftrumsdata i filen `lfv.json`. Den kommer ur LFV:s DAIM och står
+  under CC BY-NC-ND 4.0 — © LFV. Den filen omfattas alltså INTE av CC0-
+  upplåtelsen ovan, och får inte vidarelicensieras. Vill du använda
+  luftrumsdata, hämta den från LFV: https://daim.lfv.se/
+  Allt annat i katalogen är CC0.

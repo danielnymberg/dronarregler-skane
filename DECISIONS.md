@@ -627,8 +627,86 @@ Kodförrådet heter fortfarande `dronarregler-skane` och `base_url` pekar på
 `dronarkoll-skane.pages.dev` — båda kan bytas, men ett namnbyte på förrådet
 bryter länkar och gjordes inte utan Daniels besked.
 
+### D-51 — LFV:s luftrum hämtas som vektor, och R5 är därmed delvis upphävt
+Ursprungsregeln sa: aldrig LFV:s WFS, aldrig omstyling, aldrig punkt-i-polygon
+mot deras data. Ett ostylat rasterlager gjorde tjänsten oförmögen att själv
+svara på om du står i en kontrollzon — den kunde bara rita en bild du fick
+tolka. Hela Sveriges luftrum är 259 polygoner och 209 kB; som vektor ryms det i
+telefonen och svarar utan nät.
+
+Beslutet är fattat för en pre-beta med en användare och utan kommersiellt syfte,
+och det är avstängbart med `lfv_vektor: false`. Det som INTE ändrades är
+licensdisciplinen: LFV:s data är CC BY-NC-ND, undantas uttryckligen från
+tjänstens CC0-upplåtelse, och deras egna tiles cachas aldrig om. Testet C6
+skrevs om från "rör aldrig deras vektordata" till att vakta just det.
+ND-klämman — att konvertera och styla om är en bearbetning — är den första
+frågan att ta om innan tjänsten görs publik.
+
+### D-52 — Sex luftfartslägen i stället för tre svarslägen
+`lanklage` omfattade 5 485 områden och dolde två olika besked bakom samma ord:
+"beslutet är läst och nämner ingenting om luftfart" och "det finns inget beslut
+att läsa". Det första är ett svar, det andra en lucka. Nu skiljs de åt, och en
+lucka rankas som mer angelägen än ett besked — en oläst handling får aldrig se
+lugnare ut än en läst.
+
+Mätt över landet: 2,8 % nämner luftfart ordagrant, 25,7 % har störningsförbud,
+50,6 % är lästa utan träff, 20,8 % saknar digitalt beslut.
+
+### D-53 — Citatet visas i kartsvaret, inte en klick bort
+Kartan sa "Reglerat område — läs beslutet" och lämnade dig där, trots att
+citatet fanns i datan. De 298 områden vars föreskrifter nämner luftfart ryms i
+306 kB och bärs offline; störningsförbuden (2 746 områden, 3,5 MB) hämtas per
+ruta. Utan det kan vaktläget inte varna utan täckning.
+
+### D-54 — Rubriken får inte påstå mer än citatet
+Västra Kullaberg fick rubriken "Föreskriften förbjuder störning" över ett citat
+som lyder "I området finns miljöer som kan utgöra häckningsplatser för fåglar
+…" — bakgrundstext ur beslutets skäl, inte en föreskrift. 483 av 3 044 områden
+gjorde samma övertramp. Saknas verifierad föreskriftsinledning säger rubriken
+nu "Beslutet nämner". Nivån är oförändrad; påståendet är det inte. Vaktas av
+test C9.
+
+### D-55 — De allmänna reglerna citeras, men ordnas under frågor
+Höjdgränsen, klareringskravet och tillståndet för R-område är inte platsbundna
+och stod ingenstans i tjänsten. De hämtas nu ur EU 2019/947, TSFS 2017:110,
+skyddslagen och luftfartslagen med samma verifieringsgrind som naturbesluten:
+ordagrann strängmatchning mot normaliserad källtext, annars avbryts bygget.
+
+Läsbarheten löses med rubriker i frågeform ("Hur högt får jag flyga?"). En fråga
+pekar; den sammanfattar inte. Det är den enda formen av förenkling R1 tillåter.
+
+EUR-Lex svarar 202 på maskinella anrop; EU:s publikationsbyrå levererar samma
+officiella text via cellar-API:t med `Accept-Language: swe`.
+
+### D-56 — Friskrivning som grind i stället för utspridd reservation
+En kvittering vid första besöket, sparad lokalt med versionsnyckel. Poängen är
+inte juridisk utan redaktionell: när den som använder tjänsten en gång fått veta
+vad den är, kan reservationerna på varje enskild sida hållas korta i stället för
+att upprepas tills de slutar läsas.
+
+### D-57 — En mening i §7-texten är ändrad, för att den blev falsk
+Originalet sa att luftrumsregler "omfattas inte av tjänstens databas". Sedan
+LFV:s zoner ligger inne stämmer det inte. Meningen preciserar nu vad som
+fortfarande inte täcks — tillfälliga restriktioner, NOTAM, militär verksamhet.
+Rättelse av sakförhållande, inte uppmjukning: att underdriva vad tjänsten gör är
+lika vilseledande som att överdriva det.
+
+### D-58 — PWA med vaktläge
+Installbar, standalone, ikoner ritade i kod ur stdlib så att bygget inte kräver
+Pillow eller en SVG-konverterare. Service workern förcachar app-skalet,
+luftrummet och luftfartscitaten — den halva megabyte som räcker för nivå
+1-svaret utan nät. Vaktläget lyssnar på positionen och piper bara vid INTRÄDE i
+ett nytt läge; ett pip per uppdatering hade blivit larmtrötthet (R8).
+
+Service workerns version är innehållshashen av app.js, style.css och sw.js.
+Utan sw.js i hashen kan bara den ändras utan att cachenamnen byts, och då lever
+den gamla appen kvar i webbläsaren.
+
 ## Öppna punkter
 
 - `base_url` pekar på pages.dev — byt när en skarp domän är bestämd.
 - Cron för månadsuppdateringen är avstängd.
 - Bakgrundskartans tile-leverantör bör omprövas om trafiken växer (D-24).
+- LFV:s ND-licens: ta om frågan innan tjänsten görs publik (D-51).
+- Vaktläget är inte kört på en riktig telefon ute i fält — bara i
+  webbläsare med simulerad position.

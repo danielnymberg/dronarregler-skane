@@ -18,5 +18,7 @@
     "dronechart": "https://dronechart.lfv.se/"
   },
   "_omfattning_kommentar": "lan_kort = null ger rikstackande uttag. Satt till t.ex. 'Skane' for att bygga ett enskilt lan.",
-  "_kartdata_kommentar": "Kartan laddar rutnatsfiler for det synliga utsnittet. Ingen oversiktsfil for hela landet - se bygg_rutnat i scripts/05_build_data.py for varfor."
+  "_kartdata_kommentar": "Kartan laddar rutnatsfiler for det synliga utsnittet. Ingen oversiktsfil for hela landet - se bygg_rutnat i scripts/05_build_data.py for varfor.",
+  "lfv_vektor": true,
+  "_lfv_kommentar": "lfv_vektor=true hamtar LFV:s luftrum som vektor och svarar sjalv pa zonfragan. false faller tillbaka pa det ostylade WMS-lagret. Se toppen av scripts/08_lfv.py for licensresonemanget."
 }

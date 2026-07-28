@@ -2,17 +2,19 @@ SHELL := /bin/bash
 PY := python3
 
 .PHONY: help all build ingest docs extract verify data site test test-snabb \
-        visuell servera uppdatera rensa-dist rensa-allt
+        visuell servera uppdatera rensa-dist rensa-allt lfv regler
 
 help:
 	@echo "Drönarkoll Skåne — pipeline"
 	@echo ""
-	@echo "  make all         hela kedjan: steg 1–6 + testsvit (grönt krävs för dist/)"
+	@echo "  make all         hela kedjan: steg 1–9 + testsvit (grönt krävs för dist/)"
 	@echo "  make ingest      steg 1  hämta områden ur NVR (WFS) + detaljposter"
 	@echo "  make docs        steg 2  ladda ned beslutsdokument + text/OCR"
 	@echo "  make extract     steg 3  extrahera föreskriftspunkter"
 	@echo "  make verify      steg 4  verifiera varje citat mot källdokumentet"
 	@echo "  make data        steg 5  bygg CC0-datapaketet i data/"
+	@echo "  make lfv         steg 8  hämta LFV:s luftrum (bärs offline av appen)"
+	@echo "  make regler      steg 9  hämta och belägg de allmänna reglerna"
 	@echo "  make site        steg 6  bygg dist/ (kräver grön testsvit via make all)"
 	@echo "  make test        testsvit A–D"
 	@echo "  make test-snabb  testsvit utan nätberoende länkhälsotest"
@@ -25,7 +27,7 @@ help:
 # dist/ får bara skrivas när testsviten är grön. Därför byggs dist/ i två steg:
 # först en kandidat, sedan tester, sedan behålls den. Faller testerna kvar står
 # den gamla dist/ orörd via .dist-backup.
-all: ingest docs extract verify data
+all: ingest docs extract verify data lfv regler
 	@$(MAKE) --no-print-directory _site-med-grind
 
 _site-med-grind:
@@ -52,6 +54,15 @@ verify:
 
 data:
 	$(PY) scripts/05_build_data.py
+
+# Steg 8 och 9 hämtar från andra myndigheter än Naturvårdsverket och är
+# oberoende av steg 1–5. De är billiga (259 zoner, 4 författningar) och körs
+# därför varje gång i stället för att cachas över en uppdatering.
+lfv:
+	$(PY) scripts/08_lfv.py
+
+regler:
+	$(PY) scripts/09_regler.py
 
 site:
 	$(PY) scripts/06_build_site.py

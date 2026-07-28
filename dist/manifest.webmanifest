@@ -1,0 +1,44 @@
+{
+ "name": "Drönarkoll",
+ "short_name": "Drönarkoll",
+ "description": "Vad säger föreskrifterna i skyddad natur?",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "orientation": "portrait-primary",
+ "background_color": "#0b2d4a",
+ "theme_color": "#0b2d4a",
+ "lang": "sv-SE",
+ "categories": [
+  "navigation",
+  "utilities"
+ ],
+ "icons": [
+  {
+   "src": "/assets/ikon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "/assets/ikon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "/assets/ikon-512-mask.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "shortcuts": [
+  {
+   "name": "Var står jag?",
+   "url": "/?position=1"
+  },
+  {
+   "name": "Reglerna som gäller överallt",
+   "url": "/regler/"
+  }
+ ]
+}

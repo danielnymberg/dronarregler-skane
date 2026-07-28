@@ -144,10 +144,48 @@ UNDERLIGGANDE KÄLLOR
   lagen (1960:729).
 
 INGÅR INTE I DENNA LICENS
-- LFV:s luftrumsdata. Den visas i tjänsten enbart som rasterlager direkt från
-  LFV:s egen WMS-server under CC BY-NC-ND 4.0 och finns inte i den här
-  katalogen. Ingen LFV-geometri har lagrats, bearbetats eller återpublicerats.
+- LFV:s luftrumsdata i filen `lfv.json`. Den kommer ur LFV:s DAIM och står
+  under CC BY-NC-ND 4.0 — © LFV. Den filen omfattas alltså INTE av CC0-
+  upplåtelsen ovan, och får inte vidarelicensieras. Vill du använda
+  luftrumsdata, hämta den från LFV: https://daim.lfv.se/
+  Allt annat i katalogen är CC0.
 """
+
+
+# Klassificeringar ur steg 3, grupperade efter vad de betyder för en drönare.
+# Grupperingen avgör bara vilken rubrik citatet hamnar under — själva texten
+# visas alltid ordagrant, och rubriken påstår aldrig något som citatet inte
+# säger.
+LUFTFART_KLASSER = {"uttryckligt-luftfartygsförbud", "start-landningsförbud"}
+STORNING_KLASSER = {"störningsförbud-djurliv"}
+
+
+def luftfartslage(citat, dokument):
+    """Vad tjänsten faktiskt vet om luftfart i det här området.
+
+    Det gamla `svarslage` gick inte att förstå för den som stod på marken. Det
+    hade tre värden, och det mest folkrika — `lanklage`, 5 485 områden — dolde
+    två helt olika besked bakom samma ord: "beslutet är läst och innehöll
+    ingenting om luftfart" och "det finns inget beslut att läsa". Den första är
+    ett svar. Den andra är en lucka. Att visa dem likadant är precis den sortens
+    otydlighet tjänsten finns till för att slippa.
+
+    Sex lägen, ordnade efter hur säkert tjänsten kan uttala sig. Inget av dem
+    är ett klartecken; de skiljer på vad som är läst och vad som inte är det.
+    """
+    klasser = {c.get("klassificering") for c in citat}
+    if klasser & LUFTFART_KLASSER:
+        return "luftfart"            # föreskriften nämner luftfart ordagrant
+    if klasser & STORNING_KLASSER:
+        return "storning"            # störningsförbud — kan träffa en drönare
+    if citat:
+        return "last-annat"          # läst, föreskrifter finns, inget av ovan
+    lasta = [d for d in dokument if d.get("sidor") is not None]
+    if lasta:
+        return "last-tomt"           # läst, inget föreskriftsliknande hittat
+    if dokument:
+        return "olast"               # dokument finns men är inte lästa
+    return "utan-dokument"           # inget digitalt beslut att läsa
 
 
 def bygg_rutnat(features, bbox_rader, geometrier):
@@ -224,6 +262,81 @@ def bygg_rutnat(features, bbox_rader, geometrier):
         "antal_stora_geometrifiler": len(stora),
         "stor_grans_byte": STOR_GRANS,
         "antal_bboxrutor": len(per_bbox),
+    }
+
+
+def _kompakt_citat(c):
+    """Ett citat nedbantat till det panelen behöver — utan att röra texten."""
+    return {
+        "t": c["citat"],                      # ordagrann text
+        "i": c.get("inledning") or "",        # föreskriftens inledning
+        "p": c.get("punkt"),
+        "s": c.get("sidnummer"),
+        "k": c["klassificering"],
+        "u": c.get("dokument_url"),
+        "d": c.get("dokument_namn"),
+        "o": bool(c.get("ocr")),
+    }
+
+
+def bygg_citatlager(citat_per_nvrid, bbox_rader):
+    """Gör citaten läsbara direkt i kartsvaret i stället för en klick bort.
+
+    Det var den skarpaste bristen i förra versionen: kartan sa "Reglerat område
+    — läs beslutet" och lämnade dig där. Om föreskriften faktiskt sa "förbjudet
+    att starta och landa med luftfarkost" fick du inte veta det förrän du öppnat
+    en sida till. Svaret på frågan fanns i datan men nådde aldrig fram.
+
+    Två filer av två skäl:
+
+      data/luftfart.json    De 298 områden vars föreskrifter nämner luftfart
+                            ordagrant. 274 kB — litet nog att bäras i telefonen
+                            och besvaras UTAN NÄT, vilket är förutsättningen för
+                            att vaktläget ska hinna varna innan du lyfter.
+      data/citat/{ruta}.json Störningsförbuden. 3 044 områden, 3,5 MB — för
+                            mycket att bära, men de hämtas ändå bara för rutan
+                            man står i.
+    """
+    ensure_dir(os.path.join(DATA, "citat"))
+
+    luftfart = {}
+    storning = {}
+    for nvrid, lista in citat_per_nvrid.items():
+        luft = [_kompakt_citat(c) for c in lista
+                if c["klassificering"] in LUFTFART_KLASSER]
+        stor = [_kompakt_citat(c) for c in lista
+                if c["klassificering"] in STORNING_KLASSER]
+        if luft:
+            luftfart[nvrid] = luft
+        # Nämns luftfart uttryckligen är det den träffen som gäller; att också
+        # visa störningsförbudet gör svaret längre utan att göra det klarare.
+        elif stor:
+            storning[nvrid] = stor
+
+    write_json(os.path.join(DATA, "luftfart.json"), {
+        "schema_version": 1,
+        "hamtningsdatum": today(),
+        "beskrivning": ("Verifierade citat ur beslut vars föreskrifter nämner "
+                        "luftfart ordagrant. Bärs offline av appen."),
+        "citat": luftfart,
+    }, compact=True)
+
+    per_ruta = {}
+    for rad in bbox_rader:
+        nvrid = rad[0]
+        if nvrid not in storning:
+            continue
+        for rid in rutor_for_bbox(rad[6:10], GEOMETRI_GRADER):
+            per_ruta.setdefault(rid, {})[nvrid] = storning[nvrid]
+    for rid, d in per_ruta.items():
+        write_json(os.path.join(DATA, "citat", f"{rid}.json"), {"citat": d},
+                   compact=True)
+
+    return {
+        "omraden_med_luftfartscitat": len(luftfart),
+        "omraden_med_storningscitat": len(storning),
+        "luftfartsfil_byte": os.path.getsize(os.path.join(DATA, "luftfart.json")),
+        "antal_citatrutor": len(per_ruta),
     }
 
 
@@ -454,6 +567,7 @@ def main():
             "area_ha": rec.get("area_ha"),
             "sknat_url": rec["sknat_url"],
             "svarslage": svarslage,
+            "luftfartslage": luftfartslage(citat, dokument),
             "ocr": ocr,
             "foreskriftsomraden": rec.get("foreskriftsomraden") or [],
             "sasongsdata": sasong,
@@ -534,12 +648,14 @@ def main():
                     "svarslage": svarslage,
                     "area_ha": rec.get("area_ha"),
                     "antal_citat": len(citat),
+                    "luftfartslage": luftfartslage(citat, dokument),
                     "ocr": ocr,
                     "sasong": bool(sasong),
                 },
             })
             bbox_index.append([nvrid, slugs[nvrid], rec["namn"], rec["skyddstyp"],
-                               rec["lager"], svarslage] + bb + [len(citat)])
+                               rec["lager"], svarslage] + bb +
+                              [len(citat), luftfartslage(citat, dokument)])
 
         write_json(os.path.join(DATA, "omraden", f"{nvrid}.json"), omrade, compact=True)
 
@@ -552,7 +668,8 @@ def main():
         "schema_version": 1,
         "hamtningsdatum": manifest["hamtningsdatum"],
         "kolumner": ["nvrid", "slug", "namn", "skyddstyp", "lager", "svarslage",
-                     "minx", "miny", "maxx", "maxy", "antal_citat"],
+                     "minx", "miny", "maxx", "maxy", "antal_citat",
+                     "luftfartslage"],
         "rader": bbox_index,
     }, compact=True)
 
@@ -560,6 +677,12 @@ def main():
     log(f"  rutnät: {rutnat['antal_visningsrutor']} visningsrutor, "
         f"{rutnat['antal_geometrirutor']} geometrirutor, "
         f"{rutnat['antal_stora_geometrifiler']} stora geometrier i egna filer")
+
+    citatlager = bygg_citatlager(citat_per_nvrid, bbox_index)
+    log(f"  citatlager: {citatlager['omraden_med_luftfartscitat']} områden med "
+        f"luftfartscitat ({citatlager['luftfartsfil_byte'] // 1024} kB, bärs "
+        f"offline), {citatlager['omraden_med_storningscitat']} med "
+        f"störningsförbud i {citatlager['antal_citatrutor']} rutor")
 
     skriv_licens_och_schema(manifest, stats, forenkling)
 
@@ -571,6 +694,7 @@ def main():
         "statistik": stats,
         "arealavstamning": areal,
         "rutnat": rutnat,
+        "citatlager": citatlager,
     }
     write_json(os.path.join(DATA, "manifest.json"), manifest)
     areal["varsta_mindre"] = sorted(areal["varsta_mindre"],

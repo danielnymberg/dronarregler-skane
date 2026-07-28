@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.common import (CONFIG, DATA, DIST, ROOT, ensure_dir, log, read_json,
                         slugify, write_json)
 from lib.rutnat import GEOMETRI_GRADER, ruta_id
+from lib.ikon import rita
 
 # Samma färger som kartklienten använder.
 LAGERFARG = {
@@ -39,17 +40,52 @@ OMRADE = CONFIG.get("lan") or "Sverige"
 # ---------------------------------------------------------------------------
 # Fast ansvarstext (§7 i uppdraget). Får inte kortas, mjukas upp eller
 # "förbättras" — den beskriver tjänstens faktiska beteende.
+#
+# EN mening är ändrad, och bara därför att den blev SAKLIGT FALSK när LFV:s
+# luftrum lades in som eget lager. Originalet löd:
+#
+#   "Luftrumsregler (flygplatser, restriktionsområden, NOTAM, geografiska
+#    UAS-zoner) omfattas inte av tjänstens databas — kontrollera alltid LFV:s
+#    drönarkarta före flygning."
+#
+# Delar av det omfattas nu. Att låta texten stå kvar hade varit att underdriva
+# vad tjänsten gör, vilket är lika vilseledande som att överdriva det — och
+# varningen försvinner inte, den blir preciserad: det som fortfarande INTE
+# täcks räknas upp. Ändringen är en rättelse av sakförhållande, inte en
+# uppmjukning.
 # ---------------------------------------------------------------------------
 ANSVARSTEXT = (
     "Den här tjänsten sammanställer och citerar offentliga myndighetsbeslut — "
     "den tolkar dem inte och ger inga klartecken. Citaten är maskinellt "
     "verifierade mot källdokumenten, men fel kan förekomma och regler kan ha "
-    "ändrats efter hämtningsdatumet. Luftrumsregler (flygplatser, "
-    "restriktionsområden, NOTAM, geografiska UAS-zoner) omfattas inte av "
-    "tjänstens databas — kontrollera alltid LFV:s drönarkarta före flygning. "
+    "ändrats efter hämtningsdatumet. Luftrumszoner visas som de publiceras av "
+    "LFV, men tillfälliga restriktioner, NOTAM och militär verksamhet omfattas "
+    "inte — kontrollera alltid LFV:s drönarkarta före flygning. "
     "Som fjärrpilot är du ensam ansvarig för att din flygning följer gällande "
     "regler. Läs alltid det länkade originalbeslutet."
 )
+
+# Texten i friskrivningsgrinden. Den kvitteras en gång och sparas lokalt, vilket
+# är hela poängen: när den som använder tjänsten vet vad den är, kan
+# reservationerna på varje enskild sida hållas korta i stället för att upprepas
+# tills de slutar läsas.
+GRINDTEXT = [
+    ("Tjänsten citerar — den bedömer inte",
+     "Allt som visas som regel är ett ordagrant citat ur ett myndighetsbeslut "
+     "eller ur en författning, med sidnummer och länk till originalet. Tjänsten "
+     "tolkar dem inte, sammanfattar dem inte och ger inga klartecken."),
+    ("Tystnad är inte ett besked",
+     "”Ingen träff” betyder att tjänstens källor inte innehåller något för den "
+     "punkten — inte att något är prövat. Tjänsten skiljer på vad den läst och "
+     "vad den inte läst, och säger vilket som är vilket."),
+    ("Det som inte täcks",
+     "Tillfälliga restriktioner, NOTAM, militär verksamhet, markägares "
+     "medgivande och kommunala ordningsföreskrifter finns inte i databasen. "
+     "Kontrollera alltid LFV:s drönarkarta före flygning."),
+    ("Ansvaret är ditt",
+     "Som fjärrpilot är du ensam ansvarig för att flygningen följer gällande "
+     "regler. Data kan vara inaktuell och fel kan förekomma."),
+]
 
 LFV_RAD = (
     "Luftrum (flygplatser, restriktionsområden, NOTAM) visas i LFV-lagret och på "
@@ -106,8 +142,12 @@ def _tillgangsversion():
     men satt i cachen. Stämpeln gör att en ändrad fil får en ny URL.
     """
     h = hashlib.sha256()
-    for namn in ("app.js", "style.css"):
-        sokvag = os.path.join(SITE, "assets", namn)
+    for sokvag in (os.path.join(SITE, "assets", "app.js"),
+                   os.path.join(SITE, "assets", "style.css"),
+                   # Service workern räknas med, annars kan bara den ändras och
+                   # cachenamnen står stilla — då lever den gamla appen kvar i
+                   # webbläsaren efter utrullningen, potentiellt i veckor.
+                   os.path.join(SITE, "sw.js")):
         if os.path.exists(sokvag):
             with open(sokvag, "rb") as fh:
                 h.update(fh.read())
@@ -145,6 +185,7 @@ def sidmall(*, titel, beskrivning, kanonisk, innehall, bred=False,
     <a class="logotyp" href="/">{E(NAMN)}</a>
     <nav>
       <a href="/">Karta</a>
+      <a href="/regler/">Reglerna</a>
       <a href="/omraden/">Alla områden</a>
       <a href="/kallor/">Källor och täckning</a>
       <a href="/om/">Om tjänsten</a>
@@ -161,8 +202,9 @@ def sidmall(*, titel, beskrivning, kanonisk, innehall, bred=False,
     <p>{E(NAMN)} är gratis och reklamfri. Ingen spårning, inga analysverktyg,
     inga cookies utöver tekniskt nödvändiga.</p>
     <p>Områdesdata: Naturvårdsverkets naturvårdsregister (CC0).
-    Luftrumslagret: {E(CONFIG['lfv_wms']['attribution'])} — visas som raster direkt
-    från LFV:s server. Tjänstens egen databas publiceras under CC0.</p>
+    Luftrumslagret: {E(CONFIG['lfv_wms']['attribution'])} — hämtat ur LFV:s DAIM.
+    Det lagret omfattas <strong>inte</strong> av tjänstens CC0-publicering.
+    Tjänstens egen databas publiceras under CC0.</p>
     <p><a href="{E(CONFIG['repo_url'])}">Källkod och databas</a> ·
     <a href="/kallor/">Källor och täckning</a> ·
     <a href="{E(CONFIG['issue_url'])}">Rapportera fel</a></p>
@@ -264,6 +306,78 @@ def issue_lank(omrade, svarslage, manifestversion):
     return f"{CONFIG['issue_url']}?{q}"
 
 
+# Beskeden på områdessidan. Rubriken säger vad tjänsten VET om just luftfart,
+# och skiljer på "läst utan träff" och "inte läst" — de var samma text förut,
+# vilket gjorde det omöjligt att se om tystnaden var ett svar eller en lucka.
+BESKED = {
+    "luftfart": (
+        "forbud", "Föreskrifterna nämner luftfart",
+        "Nedan står de citat ur beslutet där luftfart nämns ordagrant. "
+        "Läs dem i beslutets sammanhang — tjänsten avgör inte vad de innebär "
+        "för din flygning."),
+    "storning": (
+        "storning", "Föreskrifterna förbjuder störning",
+        "Beslutet nämner inte drönare, men innehåller förbud mot att störa "
+        "djurlivet. En drönare kan träffas av ett sådant förbud. Citaten står "
+        "nedan."),
+    "last-annat": (
+        "last", "Beslutet nämner inget om luftfart",
+        "Tjänsten har läst beslutet och funnit föreskrifter, men ingen som "
+        "nämner luftfart eller störning. Andra föreskrifter kan ändå vara "
+        "relevanta — citaten står nedan."),
+    "last-tomt": (
+        "okant", "Beslutet är läst men ingen föreskriftstext kunde utläsas",
+        "Dokumenten är hämtade och lästa, men tjänsten kunde inte skilja ut "
+        "någon föreskriftstext ur dem. Det säger ingenting om vad beslutet "
+        "innehåller — läs det."),
+    "olast": (
+        "okant", "Beslutet har ännu inte lästs av tjänsten",
+        "Området finns i registret och beslutsdokumenten är länkade nedan, men "
+        "tjänsten har inte hämtat och läst dem. Att inga citat visas betyder "
+        "alltså ingenting om vad beslutet säger — läs det."),
+    "utan-dokument": (
+        "okant", "Inget digitalt beslut att läsa",
+        "Registret innehåller inget beslutsdokument för området som tjänsten "
+        "kan hämta. Föreskrifter kan ändå finnas — kontakta beslutsmyndigheten "
+        "eller se områdets sida hos Naturvårdsverket."),
+}
+
+
+# Samma rubriker, men för de citat som saknar verifierad föreskriftsinledning.
+# Se kommentaren vid LAGE i site/assets/app.js: utan inledning kan citatet stå i
+# beslutets skäl i stället för i dess föreskrifter, och då får rubriken inte
+# säga "föreskriften".
+BESKED_SVAG = {
+    "luftfart": (
+        "forbud", "Beslutet nämner luftfart",
+        "Nedan står de citat ur beslutet där luftfart nämns ordagrant. Tjänsten "
+        "har inte kunnat knyta dem till en föreskriftspunkt — de kan stå i "
+        "beslutets skäl. Läs dem i sitt sammanhang."),
+    "storning": (
+        "storning", "Beslutet nämner störning av djurlivet",
+        "Beslutet nämner inte drönare. Citaten nedan handlar om störning, men "
+        "tjänsten har inte kunnat knyta dem till en föreskriftspunkt — de kan "
+        "stå i beslutets skäl. Läs dem i sitt sammanhang."),
+}
+
+
+def besked(o):
+    lage = o.get("luftfartslage") or "utan-dokument"
+    if lage in BESKED_SVAG:
+        relevanta = {"luftfart": {"uttryckligt-luftfartygsförbud",
+                                  "start-landningsförbud"},
+                     "storning": {"störningsförbud-djurliv"}}[lage]
+        belagd = any(c.get("inledning") for c in (o.get("citat") or [])
+                     if c.get("klassificering") in relevanta)
+        if not belagd:
+            klass, rubrik, text = BESKED_SVAG[lage]
+            return (f'<div class="svar svar-{klass}"><strong>{E(rubrik)}</strong>'
+                    f"<p>{E(text)}</p></div>")
+    klass, rubrik, text = BESKED.get(lage, BESKED["utan-dokument"])
+    return (f'<div class="svar svar-{klass}"><strong>{E(rubrik)}</strong>'
+            f"<p>{E(text)}</p></div>")
+
+
 def omradessida(o, manifest):
     """Områdessidan: en läsbar handling, inte en appvy.
 
@@ -289,25 +403,13 @@ def omradessida(o, manifest):
         d.append('<div class="ocr-varning">Texten är OCR-tolkad ur inskannat '
                  "original — kontrollera mot källdokumentet.</div>")
 
+    d.append(besked(o))
+
     if citat:
         d.append("<h2>Ur beslutet, ordagrant</h2>")
         d.append(rendera_citatgrupper(citat))
         if len({(c["dokument_namn"], c["dokument_url"]) for c in citat}) > 1:
             d.append(f'<p class="avstand">{FLERA_BESLUT}</p>')
-    elif o.get("svarslage") == "beslut-ej-last":
-        # Tjänsten har inte läst dokumentet ännu och kan därför inte säga något
-        # om vad det innehåller. Den säger det, i stället för att låta tystnad
-        # se ut som ett besked.
-        d.append('<div class="svar svar-tacks-ej"><strong>Beslutet har ännu inte '
-                 "lästs av tjänsten</strong><p>Området finns i registret och "
-                 "beslutsdokumenten är länkade nedan, men tjänsten har ännu inte "
-                 "hämtat och läst dem. Att inga citat visas betyder alltså "
-                 "ingenting om vad beslutet säger — läs det.</p></div>")
-    else:
-        d.append('<div class="svar svar-reglerat"><strong>Reglerat område — läs '
-                 "beslutet</strong><p>Ingen föreskrift som uttryckligen nämner "
-                 "luftfartyg hittades i beslutet. Andra föreskrifter kan ändå vara "
-                 "relevanta — läs beslutet.</p></div>")
 
     dok = [x for x in (o.get("dokument") or []) if x.get("url")]
     d.append("<h2>Beslutsdokument</h2>")
@@ -426,32 +528,61 @@ def startsida(manifest, bboxindex):
 window.DK_ANSVARSTEXT={json.dumps(ANSVARSTEXT)};</script>
 <script defer src="/vendor/leaflet/leaflet.js"></script>
 <script defer src="/assets/app.js?v={VERSION}"></script>'''
+
+    grind = "".join(
+        f"<li><strong>{E(rub)}</strong><span>{E(txt)}</span></li>"
+        for rub, txt in GRINDTEXT)
+
     kropp = f'''<div id="karta"></div>
 <header class="apptopp">
   <a class="namn" href="/om/">{E(NAMN)}</a>
   <div class="hoger">
-    <button class="ikonknapp primar" id="positionsknapp">Var står jag?</button>
-    <button class="ikonknapp" id="lagerknapp" aria-label="Lager">Lager</button>
+    <button class="ikonknapp" id="installknapp" hidden>Installera</button>
+    <button class="ikonknapp" id="lagerknapp" aria-label="Lager och information">Lager</button>
   </div>
 </header>
+<div id="natstatus" hidden>Offline — luftrum och luftfartsföreskrifter svarar ändå,
+  övrig data bara om den hunnit cachas.</div>
 <div id="kartstatus"></div>
 <div id="lagerpanel">
   <label><input type="checkbox" id="lfvtoggle" checked> Luftrum (LFV)</label>
-  <p style="margin:.5rem 0 0;font-size:.82rem;color:var(--text-svag)">
-    Data hämtad {E(datum)}<br>
+  <p class="lagermeta" id="lfvmeta"></p>
+  <p class="lagermeta">Områdesdata hämtad {E(datum)}</p>
+  <p class="lagermeta"><a href="/regler/">Reglerna som gäller överallt</a> ·
     <a href="/omraden/">Alla områden</a> · <a href="/kallor/">Källor</a> ·
     <a href="/om/">Om tjänsten</a></p>
 </div>
-<section id="panel" aria-live="polite">
+<div class="knapprad">
+  <button class="storknapp primar" id="positionsknapp">Var står jag?</button>
+  <button class="storknapp vakt" id="vaktknapp" aria-pressed="false">
+    <span class="vaktprick"></span><span class="vakttext">Vakt</span>
+  </button>
+</div>
+<section id="panel" class="panel" aria-live="polite">
   <div class="handtag"></div>
   <button id="stangpanel" aria-label="Stäng">×</button>
   <div id="svar"></div>
 </section>
+<div id="grind" class="grind" hidden>
+  <div class="grindkort" role="dialog" aria-modal="true" aria-labelledby="grindrubrik">
+    <h1 id="grindrubrik">Innan du använder {E(NAMN)}</h1>
+    <ul class="grindlista">{grind}</ul>
+    <label class="grindval">
+      <input type="checkbox" id="grindkryss">
+      <span>Jag har läst detta och förstår att tjänsten inte ger klartecken.</span>
+    </label>
+    <button id="grindknapp" class="storknapp primar">Fortsätt till kartan</button>
+    <p class="grindfot"><a href="/om/">Om tjänsten</a> ·
+      <a href="/kallor/">Källor och täckning</a> ·
+      <a href="/regler/">Reglerna som gäller överallt</a></p>
+  </div>
+</div>
 <noscript>
   <div class="wrap">
     <h1>{E(NAMN)}</h1>
     <p>Kartan kräver JavaScript. Alla områden finns som vanliga sidor:
-    <a href="/omraden/">registret över samtliga områden</a>.</p>
+    <a href="/omraden/">registret över samtliga områden</a>, och
+    <a href="/regler/">reglerna som gäller överallt</a> är en vanlig textsida.</p>
   </div>
 </noscript>'''
     return f'''<!doctype html>
@@ -466,6 +597,13 @@ window.DK_ANSVARSTEXT={json.dumps(ANSVARSTEXT)};</script>
 <meta property="og:title" content="{E(NAMN)}">
 <meta property="og:url" content="{BAS}/">
 <meta property="og:locale" content="sv_SE">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b2d4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{E(NAMN)}">
+<link rel="apple-touch-icon" href="/assets/ikon-192.png">
+<link rel="icon" href="/assets/ikon-192.png">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/assets/style.css?v={VERSION}">
 {huvud}
@@ -475,6 +613,76 @@ window.DK_ANSVARSTEXT={json.dumps(ANSVARSTEXT)};</script>
 </body>
 </html>
 '''
+
+
+def reglersida(regler, manifest):
+    """De regler som gäller överallt, ordagrant ur författningarna.
+
+    Frågorna är rubriker, inte svar. De hjälper dig hitta rätt citat — de
+    sammanfattar det inte. Under varje fråga står författningstexten som den
+    står, med paragraf och länk till originalet.
+    """
+    if not regler:
+        return None
+    kallor = regler["kallor"]
+    grupper = []
+    for a in regler["avsnitt"]:
+        if not grupper or grupper[-1][0] != a["grupp"]:
+            grupper.append((a["grupp"], []))
+        grupper[-1][1].append(a)
+
+    d = ["<h1>Reglerna som gäller överallt</h1>",
+         "<p class='ingress'>De flesta reglerna som gäller en drönarflygning är "
+         "inte platsbundna. De står i en EU-förordning och i Transportstyrelsens "
+         "föreskrifter. Här står de ordagrant, med paragraf och länk till "
+         "originalet.</p>",
+         "<p class='notis'>Frågorna nedan är rubriker som hjälper dig hitta. "
+         "De sammanfattar inte författningstexten — svaret är citatet.</p>"]
+
+    d.append("<nav class='regelnav'><ul>")
+    for grupp, avsnitt in grupper:
+        for a in avsnitt:
+            d.append(f"<li><a href='#{E(a['id'])}'>{E(a['fraga'])}</a></li>")
+    d.append("</ul></nav>")
+
+    for grupp, avsnitt in grupper:
+        d.append(f"<h2>{E(grupp)}</h2>")
+        for a in avsnitt:
+            k = kallor[a["kalla"]]
+            d.append(f"<section class='regelavsnitt' id='{E(a['id'])}'>")
+            d.append(f"<h3>{E(a['fraga'])}</h3>")
+            d.append("<figure class='citat'>")
+            d.append(f"<blockquote>{E(a['text'])}</blockquote>")
+            d.append(
+                f"<figcaption>{E(k['kortnamn'])} {E(a['referens'])} · "
+                f"<a href='{E(k['url'])}' rel='noopener'>{E(k['titel'])}</a> · "
+                f"hämtad {E(k['hamtad'])}</figcaption>")
+            d.append("</figure></section>")
+
+    d.append("<h2>Författningarna i sin helhet</h2><ul class='kallista'>")
+    for nyckel, k in kallor.items():
+        d.append(
+            f"<li><a href='{E(k['url'])}' rel='noopener'>{E(k['titel'])}</a> — "
+            f"{E(k['beskrivning'])}. {E(k['myndighet'])}. "
+            f"Hämtad {E(k['hamtad'])}, sha256 <code>{E(k['sha256'][:16])}…</code></li>")
+    d.append("</ul>")
+
+    d.append(
+        "<h2>Det här är inte allt</h2>"
+        "<p>Sidan täcker de författningar som listas ovan. Den täcker inte "
+        "NOTAM, tillfälliga restriktioner, kommunala ordningsföreskrifter, "
+        "kamerabevakningsreglerna eller markägares medgivande. Föreskrifter för "
+        "en enskild plats står i respektive områdesbeslut och nås via "
+        "<a href='/'>kartan</a>.</p>")
+    d.append(f"<p class='ansvar'>{ANSVARSTEXT}</p>")
+
+    return sidmall(
+        titel=f"Reglerna som gäller överallt — {NAMN}",
+        beskrivning=("Ordagranna citat ur EU 2019/947, TSFS 2017:110, "
+                     "skyddslagen och luftfartslagen, ordnade under frågor."),
+        kanonisk=f"{BAS}/regler/",
+        innehall="\n".join(d),
+        data_datum=regler["hamtningsdatum"])
 
 
 def kallsida(manifest, rapport, omraden):
@@ -699,6 +907,55 @@ def skriv(path, text):
         fh.write(text)
 
 
+def skriv_bytes(path, data):
+    ensure_dir(os.path.dirname(path))
+    with open(path, "wb") as fh:
+        fh.write(data)
+
+
+def skriv_pwa():
+    """Manifest, service worker och ikoner.
+
+    Service workern får samma innehållshash som app.js och style.css. Utan det
+    lever den gamla versionen kvar i cachen efter en utrullning — precis den
+    sortens fel som redan kostat en halvtimmes felsökning en gång, med skillnaden
+    att en service worker kan hålla kvar en gammal app i veckor.
+    """
+    manifest = {
+        "name": NAMN,
+        "short_name": NAMN,
+        "description": CONFIG["site_tagline"],
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "orientation": "portrait-primary",
+        "background_color": "#0b2d4a",
+        "theme_color": "#0b2d4a",
+        "lang": "sv-SE",
+        "categories": ["navigation", "utilities"],
+        "icons": [
+            {"src": "/assets/ikon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/assets/ikon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "/assets/ikon-512-mask.png", "sizes": "512x512",
+             "type": "image/png", "purpose": "maskable"},
+        ],
+        "shortcuts": [
+            {"name": "Var står jag?", "url": "/?position=1"},
+            {"name": "Reglerna som gäller överallt", "url": "/regler/"},
+        ],
+    }
+    write_json(os.path.join(DIST, "manifest.webmanifest"), manifest)
+
+    with open(os.path.join(SITE, "sw.js"), encoding="utf-8") as fh:
+        sw = fh.read()
+    skriv(os.path.join(DIST, "sw.js"), sw.replace("__VERSION__", VERSION))
+
+    for storlek, maskbar, namn in ((192, False, "ikon-192.png"),
+                                   (512, False, "ikon-512.png"),
+                                   (512, True, "ikon-512-mask.png")):
+        skriv_bytes(os.path.join(DIST, "assets", namn), rita(storlek, maskbar))
+
+
 def main():
     manifest = read_json(os.path.join(DATA, "manifest.json"))
     rapport = read_json(os.path.join(DATA, "verification-report.json"))
@@ -730,6 +987,17 @@ def main():
     skriv(os.path.join(DIST, "kallor", "index.html"),
           kallsida(manifest, rapport, omraden))
     skriv(os.path.join(DIST, "om", "index.html"), omsida(manifest, rapport))
+    skriv_pwa()
+
+    regler = read_json(os.path.join(DATA, "regler.json"))
+    regelsida_html = reglersida(regler, manifest)
+    if regelsida_html:
+        skriv(os.path.join(DIST, "regler", "index.html"), regelsida_html)
+    else:
+        # Sidan lovas i navigationen och i appens svar. Saknas underlaget ska
+        # bygget säga det, inte tyst leverera en trasig länk.
+        log("  VARNING: data/regler.json saknas — /regler/ byggdes inte. "
+            "Kör scripts/09_regler.py.")
     listsidor = omradeslista(omraden, manifest)
     for nyckel, html_text in listsidor.items():
         if nyckel == "index":
@@ -738,6 +1006,8 @@ def main():
             skriv(os.path.join(DIST, "omraden", nyckel, "index.html"), html_text)
 
     urler = [BAS + "/", BAS + "/kallor/", BAS + "/om/", BAS + "/omraden/"]
+    if regelsida_html:
+        urler.append(BAS + "/regler/")
     urler += [f"{BAS}/omraden/{n}/" for n in listsidor if n != "index"]
     for o in omraden:
         katalog = os.path.join(DIST, "omrade", f"{o['nvrid']}-{o['slug']}")

@@ -1,6 +1,6 @@
 # Databas: skyddade områden i Skåne län med föreskriftscitat
 
-Hämtningsdatum: **2026-07-27**
+Hämtningsdatum: **2026-07-28**
 Licens: **CC0 1.0** (se `LICENSE`)
 Antal objekt: **10681**
 
@@ -129,8 +129,8 @@ ordning. Substansen är citatet.
 
 ## Statistik vid detta bygge
 
-- Objekt med minst ett verifierat citat: 0
-- Objekt i länk-läge: 1222
-- Objekt med OCR-tolkad text: 0
+- Objekt med minst ett verifierat citat: 5188
+- Objekt i länk-läge: 5485
+- Objekt med OCR-tolkad text: 3261
 - Objekt med säsongsdata: 1266
 - Objekt utan geometri: 0
