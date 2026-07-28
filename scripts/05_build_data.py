@@ -276,6 +276,7 @@ def _kompakt_citat(c):
         "u": c.get("dokument_url"),
         "d": c.get("dokument_namn"),
         "o": bool(c.get("ocr")),
+        "w": c.get("traffade_ord") or [],   # orden som gjorde att citatet valdes
     }
 
 

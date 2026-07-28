@@ -120,7 +120,13 @@ def test_a_citatrakenskap(r):
             r.fel.append(f"A: områdessida saknas för NVRID {o['nvrid']}")
             continue
         with open(sidpath, encoding="utf-8") as fh:
-            html_norm = normalisera(fh.read())
+            sidhtml = fh.read()
+        # <mark> märker ut de ord som gjorde att citatet valdes ut. Taggen är
+        # ren inline-annotering och tillför ingen text — den tas därför bort
+        # helt innan jämförelsen, inte ersätts med mellanslag. Att den finns
+        # får aldrig räknas som en avvikelse i ordalydelsen, och att den inte
+        # ÄNDRAR ordalydelsen kontrolleras separat i C11.
+        html_norm = normalisera(sidhtml.replace("<mark>", "").replace("</mark>", ""))
         for c in o["citat"]:
             import html as htmlmod
             if normalisera(htmlmod.escape(c["citat"])) not in html_norm:
@@ -341,7 +347,10 @@ def test_c_golden(r):
         sidpath = os.path.join(DIST, "omrade", f"{nvrid}-{o['slug']}", "index.html")
         if os.path.exists(sidpath):
             with open(sidpath, encoding="utf-8") as fh:
-                sida = normalisera(fh.read())
+                # <mark> tas bort helt, inte ersätts med mellanslag — se
+                # motiveringen i test A. Märkningen tillför ingen text.
+                sida = normalisera(fh.read().replace("<mark>", "")
+                                   .replace("</mark>", ""))
             r.kolla(norm_del in sida,
                     f"C2b {fall['id']}: delsträngen syns inte på den byggda sidan")
         if i_data:
@@ -542,6 +551,65 @@ def test_c_golden(r):
     if not overtramp:
         r.notera(f"C9: {provade} områden utan belagd föreskriftsinledning — "
                  f"ingen rubrik påstår mer än citatet ✓")
+
+    # C10 Inget beslut får kastas för att det också innehåller skötselplanen.
+    #
+    # Filtret prövade SKIP_DOC före RULE_DOC. "beslut med skötselplan
+    # lerberget.pdf" matchar bägge, kastades som "ej föreskriftsbärande", och
+    # 961 områden fick beskedet "inget digitalt beslut att läsa" när beslutet
+    # fanns och låg länkat. Länsstyrelser och kommuner buntar rutinmässigt
+    # beslut och skötselplan i samma fil.
+    RULE_DOC = re.compile(
+        r"beslut|f[oö]reskrift|f[oö]rordnand|kung[oö]rels|stadga|bildand|"
+        r"utvidgn|[aä]ndr|reservatsbeslut|tilltr[aä]desf[oö]rbud|interimist", re.I)
+    BILD = re.compile(r"\.(jpe?g|png|tiff?|gif)$", re.I)
+    felkastade, utan_dok = [], 0
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden"))):
+        o = read_json(os.path.join(DATA, "omraden", fil))
+        if not o:
+            continue
+        for h in (o.get("dokument_hoppade") or []):
+            namn = h.get("namn") or ""
+            if RULE_DOC.search(namn) and not BILD.search(namn):
+                felkastade.append(f"{o['nvrid']} {namn[:50]}")
+        if o.get("luftfartslage") == "utan-dokument":
+            utan_dok += 1
+    r.kolla(not felkastade,
+            f"C10: {len(felkastade)} beslutshandlingar kastade trots att namnet "
+            f"pekar ut dem som beslut: {felkastade[:5]}")
+    if not felkastade:
+        r.notera(f"C10: ingen beslutshandling kastad av dokumentfiltret; "
+                 f"{utan_dok} områden saknar verkligen digitalt beslut ✓")
+
+    # C11 Träffordsmärkningen får inte ändra citatet.
+    #
+    # Märkningen visar VARFÖR ett citat valdes ut. Den lägger till <mark> och
+    # ingenting annat — tas taggarna bort ska texten vara identisk med den i
+    # datan, annars har renderingen börjat röra vid ordalydelsen.
+    prov, avvikande = 0, []
+    for fil in sorted(os.listdir(os.path.join(DATA, "omraden")))[:600]:
+        o = read_json(os.path.join(DATA, "omraden", fil))
+        citat = (o or {}).get("citat") or []
+        if not citat:
+            continue
+        sida = os.path.join(DIST, "omrade", f"{o['nvrid']}-{o['slug']}", "index.html")
+        if not os.path.exists(sida):
+            continue
+        with open(sida, encoding="utf-8") as fh:
+            sidhtml = fh.read()
+        # Ta bort märkningen och normalisera; citatet ska då finnas ordagrant.
+        utan_mark = sidhtml.replace("<mark>", "").replace("</mark>", "")
+        text = re.sub(r"\s+", " ", html_mod.unescape(re.sub(r"<[^>]+>", " ", utan_mark)))
+        for c in citat[:3]:
+            prov += 1
+            if re.sub(r"\s+", " ", c["citat"]).strip() not in text:
+                avvikande.append(f"{o['nvrid']} s.{c.get('sidnummer')}")
+                break
+    r.kolla(not avvikande,
+            f"C11: citat som inte återfinns ordagrant efter att märkningen "
+            f"tagits bort: {avvikande[:5]}")
+    if not avvikande:
+        r.notera(f"C11: {prov} citat oförändrade av träffordsmärkningen ✓")
 
     # C7 Regelsidans citat.
     reglerfil = os.path.join(DIST, "data", "regler.json")

@@ -252,6 +252,40 @@
   }
 
   /* ============================================================ rendering */
+  /* Märker ut de ord som gjorde att citatet valdes ut.
+   *
+   * Ett citat är ofta en halv sida beslutstext. Utan märkning måste man läsa
+   * alltihop för att se varför det kom upp — och det var den befogade
+   * invändningen mot första versionen: tjänsten lämnade över hela läsbördan.
+   *
+   * Texten ändras inte. Ingenting stryks, ingenting skrivs om, ordföljden är
+   * orörd. Det enda som händer är att urvalsgrunden görs synlig. */
+  function markera(text, ord) {
+    var ut = esc(text);
+    (ord || []).forEach(function (o) {
+      if (!o || o.length < 3) return;
+      var n = esc(o), i = 0, bit = "";
+      var jamfor = ut.toLowerCase(), sok = n.toLowerCase();
+      while (true) {
+        var p = jamfor.indexOf(sok, i);
+        if (p < 0) { bit += ut.slice(i); break; }
+        // Hoppa över träffar inuti taggar vi redan lagt in.
+        if (ut.lastIndexOf("<", p) > ut.lastIndexOf(">", p)) {
+          bit += ut.slice(i, p + sok.length); i = p + sok.length; continue;
+        }
+        // Bara vid ordbörjan — "fordon" inuti "terrängfordon" ska inte ge
+        // "terräng[fordon]", det läser som ett stavfel.
+        if (p > 0 && /[A-Za-zÀ-ÿ-]/.test(ut.charAt(p - 1))) {
+          bit += ut.slice(i, p + sok.length); i = p + sok.length; continue;
+        }
+        bit += ut.slice(i, p) + "<mark>" + ut.slice(p, p + sok.length) + "</mark>";
+        i = p + sok.length;
+      }
+      ut = bit;
+    });
+    return ut;
+  }
+
   function citatHtml(c) {
     var kalla = [];
     if (c.p) kalla.push("punkt " + esc(c.p));
@@ -259,8 +293,8 @@
     var lank = c.u ? '<a href="' + esc(c.u) + '" rel="noopener">' +
                      esc(c.d || "beslutet") + "</a>" : esc(c.d || "");
     return '<figure class="citat">' +
-      (c.i ? '<p class="inledning">' + esc(c.i) + "</p>" : "") +
-      "<blockquote>" + esc(c.t) + "</blockquote>" +
+      (c.i ? '<p class="inledning">' + markera(c.i, c.w) + "</p>" : "") +
+      "<blockquote>" + markera(c.t, c.w) + "</blockquote>" +
       '<figcaption>' + (kalla.length ? esc(kalla.join(" · ")) + " · " : "") + lank +
       (c.o ? ' <span class="ocr">texttolkad bild</span>' : "") +
       "</figcaption></figure>";
@@ -313,7 +347,18 @@
       esc(o.namn) + "</a></strong></div>" +
       '<p class="skyddstyp">' + esc(o.skyddstyp) + " — " +
       esc(LAGETEXT[nyckel] || "") + "</p>" +
-      p.citat.map(citatHtml).join("") +
+      /* Första citatet syns, resten fälls ut. Ett beslut kan ha ett halvdussin
+       * punkter som alla nämner luftfart — undantag för räddningstjänst,
+       * undantag för förvaltaren — och staplade i full längd blir svaret en
+       * vägg text man slutar läsa. Ingenting döljs: antalet står i knappen,
+       * och alla citat finns dessutom på områdessidan. */
+      p.citat.slice(0, 1).map(citatHtml).join("") +
+      (p.citat.length > 1
+        ? "<details class='flercitat'><summary>" + (p.citat.length - 1) +
+          (p.citat.length === 2 ? " citat till" : " citat till") +
+          " ur beslutet</summary>" +
+          p.citat.slice(1).map(citatHtml).join("") + "</details>"
+        : "") +
       (p.citat.length === 0 && o.antalCitat
         ? '<p class="kallrad"><a href="/omrade/' + esc(o.nvrid) + "-" + esc(o.slug) +
           '/">' + o.antalCitat + " citat ur beslutet</a></p>"

@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "kord": "2026-07-28T12:22:10+00:00",
+ "kord": "2026-07-28T16:28:17+00:00",
  "normalisering": [
   "Unicode NFKC",
   "ligaturer (ﬁ ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ) expanderas",
@@ -13,27 +13,27 @@
  "krav": "exakt delsträngsförekomst efter normalisering; ingen fuzzy-matchning",
  "statistik": {
   "antal_objekt": 10681,
-  "objekt_med_verifierade_citat": 5188,
-  "objekt_i_lanklage": 2,
-  "objekt_utan_traffar": 5491,
-  "objekt_med_ocr": 3261,
-  "citat_prövade": 20582,
-  "citat_godkanda": 20564,
-  "citat_kasserade": 18,
+  "objekt_med_verifierade_citat": 6228,
+  "objekt_i_lanklage": 1,
+  "objekt_utan_traffar": 4452,
+  "objekt_med_ocr": 3438,
+  "citat_prövade": 25640,
+  "citat_godkanda": 25620,
+  "citat_kasserade": 20,
   "felorsaker": {
-   "citatet för kort för meningsfull verifiering": 18
+   "citatet för kort för meningsfull verifiering": 20
   },
   "per_klass_godkanda": {
-   "motorfordon-möjligen-relevant": 8161,
-   "annat-läs-beslutet": 6150,
-   "störningsförbud-djurliv": 5704,
-   "uttryckligt-luftfartygsförbud": 301,
-   "start-landningsförbud": 248
+   "motorfordon-möjligen-relevant": 11084,
+   "annat-läs-beslutet": 7220,
+   "störningsförbud-djurliv": 6643,
+   "start-landningsförbud": 295,
+   "uttryckligt-luftfartygsförbud": 378
   },
-  "inledningar_godkanda": 15322,
+  "inledningar_godkanda": 19686,
   "inledningar_kasserade": 5,
   "andel_citat_godkanda_procent": 99.9,
-  "andel_objekt_med_verifierat_innehall_procent": 48.6
+  "andel_objekt_med_verifierat_innehall_procent": 58.3
  },
  "kasserade": [
   {
@@ -44,13 +44,6 @@
    "citat_borjan": "2.   - störa djur l i vet"
   },
   {
-   "nvrid": "2000353",
-   "dokument_id": "nvdok-1007184",
-   "sidnummer": 5,
-   "orsak": "citatet för kort för meningsfull verifiering",
-   "citat_borjan": "5.   framföra motorfordon;"
-  },
-  {
    "nvrid": "2000797",
    "dokument_id": "nvdok-1006720",
    "sidnummer": 5,
@@ -58,11 +51,25 @@
    "citat_borjan": "4      framföra motorbåt."
   },
   {
+   "nvrid": "2002606",
+   "dokument_id": "nvdok-1010253",
+   "sidnummer": 4,
+   "orsak": "citatet för kort för meningsfull verifiering",
+   "citat_borjan": "6.    framföra snöskoter,"
+  },
+  {
    "nvrid": "2002702",
    "dokument_id": "nvdok-1006100",
    "sidnummer": 6,
    "orsak": "citatet för kort för meningsfull verifiering",
    "citat_borjan": "1.    Framföra motorfordon."
+  },
+  {
+   "nvrid": "2002774",
+   "dokument_id": "nvdok-1026196",
+   "sidnummer": 13,
+   "orsak": "citatet för kort för meningsfull verifiering",
+   "citat_borjan": "•                                                                                         Tillträdesförbud\n             "
   },
   {
    "nvrid": "2012996",
@@ -133,6 +140,13 @@
    "sidnummer": 4,
    "orsak": "citatet för kort för meningsfull verifiering",
    "citat_borjan": "6.   framföra motorfordon"
+  },
+  {
+   "nvrid": "2032689",
+   "dokument_id": "nvdok-1015232",
+   "sidnummer": 8,
+   "orsak": "citatet för kort för meningsfull verifiering",
+   "citat_borjan": "1.   Framföra motorfordon."
   },
   {
    "nvrid": "2032729",

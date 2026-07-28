@@ -263,6 +263,8 @@ body.app { overflow: hidden; }
   font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem;
   white-space: pre-wrap;
 }
+.flercitat { margin: 0.5rem 0 0; }
+.flercitat > summary { font-size: 0.87rem; }
 .narrubrik { margin-top: 1.2rem; }
 .notis { font-size: 0.85rem; color: var(--text-svag); }
 .ocr { font-style: italic; }
@@ -359,6 +361,20 @@ h3 { font-size: 1rem; margin: 1.5rem 0 0.3rem; font-weight: 600; }
 .citat .kalla {
   font-size: 0.85rem; color: var(--text-svag);
   margin: 0.3rem 0 0 0.9rem;
+}
+
+/* Markerade ord = varför citatet valdes ut. Understrykning bär informationen
+ * så att den överlever både gråskala och färgblindhet — bakgrunden ensam gör
+ * det inte. */
+mark {
+  background: color-mix(in srgb, var(--storning-kant) 24%, transparent);
+  color: inherit;
+  border-bottom: 2px solid var(--storning-kant);
+  border-radius: 2px; padding: 0 0.08em;
+}
+.post-lfv mark, .post-luftfart mark {
+  background: color-mix(in srgb, var(--forbud-kant) 22%, transparent);
+  border-bottom-color: var(--forbud-kant);
 }
 
 .ansvar {

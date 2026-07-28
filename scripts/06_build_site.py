@@ -240,6 +240,49 @@ def avindragen(text: str) -> str:
         r[minsta:] if r.strip() else r for r in rader[1:])
 
 
+def markera(text, ord_lista):
+    """Märk ut de ord som gjorde att citatet valdes ut.
+
+    Samma funktion som i kartappen, av samma skäl: ett citat är ofta en halv
+    sida beslutstext, och utan märkning måste man läsa alltihop för att se
+    varför det kom upp.
+
+    Texten ändras inte — ingenting stryks, ingenting skrivs om, ordföljden är
+    orörd. Bara urvalsgrunden görs synlig. Märkningen sker EFTER HTML-escaping
+    och söker i den escapade strängen, så att `<mark>`-taggarna aldrig kan
+    hamna mitt i en escapesekvens.
+    """
+    ut = E(text)
+    for ord_ in sorted(ord_lista or [], key=len, reverse=True):
+        if not ord_ or len(ord_) < 3:
+            continue
+        n = E(ord_)
+        lag_ut, lag_n = ut.lower(), n.lower()
+        bit, i = [], 0
+        while True:
+            p = lag_ut.find(lag_n, i)
+            if p < 0:
+                bit.append(ut[i:])
+                break
+            # Hoppa över träffar inuti taggar vi redan lagt in.
+            if ut.rfind("<", 0, p) > ut.rfind(">", 0, p):
+                bit.append(ut[i:p + len(n)])
+                i = p + len(n)
+                continue
+            # Bara vid ordbörjan. "fordon" inuti "terrängfordon" ska inte ge
+            # "terräng[fordon]" — en halv markering läser som ett stavfel.
+            if p > 0 and (ut[p - 1].isalpha() or ut[p - 1] == "-"):
+                bit.append(ut[i:p + len(n)])
+                i = p + len(n)
+                continue
+            bit.append(ut[i:p])
+            bit.append(f"<mark>{ut[p:p + len(n)]}</mark>")
+            i = p + len(n)
+        ut = "".join(bit)
+        lag_ut = ut.lower()
+    return ut
+
+
 def rendera_citat(c):
     """Citatet, dess källa och en länk. Inget mer.
 
@@ -254,7 +297,7 @@ def rendera_citat(c):
     """
     punkt = f"Punkt {E(c['punkt'])} · " if c.get("punkt") else ""
     return f"""<div class="citat">
-<blockquote>{E(avindragen(c['citat']))}</blockquote>
+<blockquote>{markera(avindragen(c['citat']), c.get('traffade_ord'))}</blockquote>
 <div class="kalla">{punkt}sidan {c['sidnummer']} i
 <a href="{E(c['dokument_url'])}" rel="noopener">{E(c['dokument_namn'] or 'beslutsdokumentet')}</a></div>
 </div>"""

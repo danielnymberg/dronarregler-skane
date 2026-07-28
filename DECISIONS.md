@@ -702,6 +702,50 @@ Service workerns version är innehållshashen av app.js, style.css och sw.js.
 Utan sw.js i hashen kan bara den ändras utan att cachenamnen byts, och då lever
 den gamla appen kvar i webbläsaren.
 
+### D-59 — Dokumentfiltret kastade beslut, och steget kunde inte köras om
+`SKIP_DOC` prövades före `RULE_DOC`. En fil som heter "beslut med skötselplan
+lerberget.pdf" matchar bägge och kastades som "ej föreskriftsbärande" — trots
+att den ÄR beslutet, med skötselplanen inbunden efter. Länsstyrelser och
+kommuner buntar rutinmässigt ihop dem.
+
+1 847 beslutshandlingar kastades. 961 områden fick beskedet "inget digitalt
+beslut att läsa" när beslutet fanns och låg länkat en rad längre ned. Det är den
+värsta sortens fel den här tjänsten kan göra: den skickade i väg folk att läsa
+hela handlingen själva, vilket är exakt det den finns till för att slippa.
+
+Två rättelser, och den andra är den viktigare:
+
+1. Ordningen är omvänd. Säger namnet "beslut" eller "föreskrift" är det en
+   beslutshandling, oavsett vad mer som står i namnet. Bara filändelsen kan
+   fälla det (en jpeg är aldrig ett beslut).
+
+2. Steg 2 skrev tillbaka sitt eget urval över `rec["dokument"]`. Källistan
+   fanns alltså inte kvar, och ett filterfel gick inte att rätta med en
+   omkörning — datan var förstörd, inte bara felaktig. Urvalet görs nu alltid
+   mot `dokument_alla`, som aldrig skrivs över. Ett steg som förstör sin egen
+   indata är inte omkörbart, och det är ett arkitekturfel oavsett om filtret
+   råkar vara rätt.
+
+Listan återställdes ur `cache/raw/detail/`, som lyckligtvis var orörd.
+
+### D-60 — Träffordsmärkning i stället för att lämna över hela läsbördan
+Daniels invändning: "Följden av tjänsten verkar bli att man ska sätta sig in i
+extremt mycket själv?" Befogad. Ett citat är ofta en halv sida beslutstext, och
+utan hjälp måste man läsa alltihop för att se varför det kom upp.
+
+De ord som utlöste klassificeringen märks nu ut i citatet. Det är inte en
+tolkning — det är ett faktum om urvalet, och det enda som ändras är
+synligheten. Ordalydelsen är orörd, vilket test C11 vaktar genom att ta bort
+märkningen och kräva att texten då är identisk med den i datan.
+
+Högst tre ämnesord och ett förbudsord märks. Förbudsordet finns i så gott som
+varje citat per konstruktion, och märks allt blir hela stycket gult och
+signalen dör.
+
+Panelen visar dessutom första citatet och fäller ihop resten. Gotska Sandön
+staplade sex punkter i full längd, varav flera var undantag för räddningstjänst
+och förvaltare.
+
 ## Öppna punkter
 
 - `base_url` pekar på pages.dev — byt när en skarp domän är bestämd.

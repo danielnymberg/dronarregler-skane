@@ -52,14 +52,35 @@ def doc_id(url: str) -> str:
 
 
 def pick_docs(rec):
+    """Vilka dokument som är värda att läsa efter föreskrifter.
+
+    Ordningen mellan de två mönstren är det som räknas, och den var fel.
+
+    SKIP_DOC prövades först. Ett dokument som heter "beslut med skötselplan
+    lerberget.pdf" matchar både `beslut` och `skötselplan`, och kastades därför
+    som "ej föreskriftsbärande" — trots att det ÄR beslutet, med skötselplanen
+    inbunden efter. Länsstyrelser och kommuner publicerar rutinmässigt beslutet
+    och skötselplanen i samma fil.
+
+    Följden: 1 847 beslutshandlingar kastades, och 961 områden fick beskedet
+    "inget digitalt beslut att läsa" när beslutet fanns och låg länkat. Den som
+    ville veta något fick läsa hela handlingen själv — precis det tjänsten
+    finns till för att slippa.
+
+    Rätt ordning: säger namnet "beslut", "föreskrift", "förordnande" eller
+    liknande är det en föreskriftsbärande handling, oavsett vad mer som står i
+    namnet. SKIP_DOC får bara fälla det som inte redan pekats ut som beslut.
+    """
     docs = rec.get("dokument") or []
     kept, skipped = [], []
     for d in docs:
         namn = d.get("namn") or ""
-        if SKIP_DOC.search(namn):
-            skipped.append({**d, "orsak": "ej föreskriftsbärande dokumenttyp"})
-        elif RULE_DOC.search(namn):
+        # En ren bildfil är aldrig en beslutshandling, hur den än heter.
+        ar_bild = re.search(r"\.(jpe?g|png|tiff?|gif)$", namn, re.I)
+        if RULE_DOC.search(namn) and not ar_bild:
             kept.append(d)
+        elif SKIP_DOC.search(namn):
+            skipped.append({**d, "orsak": "ej föreskriftsbärande dokumenttyp"})
         else:
             skipped.append({**d, "orsak": "namnet matchar inget föreskriftsmönster"})
     if not kept:
@@ -152,7 +173,17 @@ def main():
     # ---------------------------------------------------------- 2a nedladdning
     plan, seen = [], {}
     for nvrid, rec in sorted(objekt.items()):
-        kept, skipped = pick_docs(rec)
+        # Urvalet görs alltid mot HELA listan från registret, aldrig mot ett
+        # tidigare urval. Steget skrev förut tillbaka sitt eget urval till
+        # `dokument`, vilket gjorde det oåterkalleligt: när filtret visade sig
+        # kasta fel dokument gick de inte att få tillbaka genom att köra om, för
+        # källistan fanns inte längre. `dokument_alla` är den listan, och den
+        # rörs inte.
+        if "dokument_alla" not in rec:
+            rec["dokument_alla"] = rec.get("dokument") or []
+        kalla = dict(rec)
+        kalla["dokument"] = rec["dokument_alla"]
+        kept, skipped = pick_docs(kalla)
         rec["dokument_hoppade"] = skipped
         rec["_valda_dok"] = kept
         for d in kept:

@@ -129,8 +129,8 @@ ordning. Substansen är citatet.
 
 ## Statistik vid detta bygge
 
-- Objekt med minst ett verifierat citat: 5188
-- Objekt i länk-läge: 5485
-- Objekt med OCR-tolkad text: 3261
+- Objekt med minst ett verifierat citat: 6228
+- Objekt i länk-läge: 4441
+- Objekt med OCR-tolkad text: 3438
 - Objekt med säsongsdata: 1266
 - Objekt utan geometri: 0
