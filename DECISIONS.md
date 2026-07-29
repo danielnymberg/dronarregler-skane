@@ -746,11 +746,89 @@ Panelen visar dessutom första citatet och fäller ihop resten. Gotska Sandön
 staplade sex punkter i full längd, varav flera var undantag för räddningstjänst
 och förvaltare.
 
+### D-61 — Svaret bytte axel: från "vilka områden" till "vilka handlingar"
+"Vilka områden träffar min position" är fel fråga — svaret blir en hög att
+tolka. Daniel formulerade den rätta: får jag lyfta här, landa här, flyga över?
+
+Handlingarna härleds mekaniskt ur vilka mönster som matchade citatet, inte ur
+någon bedömning av vad föreskriften betyder. START_LANDNING ger lyfta+landa,
+luftfartstermer ger flyga, motor/tillträde ger marken, störningsförbud ger alla
+tre luftburna eftersom citatet inte skiljer dem åt.
+
+Raden säger vad källorna NÄMNER om handlingen. "Inget hittat i källorna" är
+neutralt formulerat och neutralt färgat — aldrig grönt, aldrig "tillåtet".
+
+### D-62 — Luckredovisning i varje svar
+Det som INTE kontrollerades står nu i svaret, med kommunnamnet ifyllt: "Kommunala
+föreskrifter för Höganäs mark", "Tillfälliga restriktioner och NOTAM",
+"Skyddsobjekt", "Markägarens medgivande", "Natura 2000".
+
+Utan den läses tystnad som klartecken, vilket är hela felet tjänsten finns till
+för att undvika. Det gör också "en kontroll" ärlig även när världen inte är
+fullständigt kartlagd: du vet exakt vad du själv måste kolla.
+
+### D-63 — Täckning mäts per skyddsform och yta, inte per objekt
+Ett samlat "88 % av 10 681 objekt" dolde att samtliga fem interimistiska förbud
+var olästa — de drunknade bland 765 naturminnen, som var och en är ett enskilt
+träd på 0,00 hektar.
+
+Två kolumner: andel objekt OCH andel yta. Skillnaden mellan dem är i sig
+upplysande. Landskapsbildsskydd har 68 % av objekten lästa men bara 42 % av
+ytan — luckan sitter i få men stora områden. Totalen är 88 % av objekten men
+96 % av ytan, vilket är det ärligare huvudtalet.
+
+Rader under 60 % markeras. Interimistiskt förbud står på 0 % och syns nu.
+
+### D-64 — Avståndsreglerna A1/A2/A3 saknades
+/regler/ citerade artikel 4 och höjdgränsen men inte underkategorierna — alltså
+inte UAS.OPEN.040 punkt 2, som kräver minst 150 meter till bostads-, affärs-,
+industri- eller rekreationsområden i A3. Det är den regel som avgör om man över
+huvud taget får flyga i en hamn eller ett villaområde, och den saknades.
+
+Artikel 20 är lika viktig: en drönare utan klassmärkning över 250 g hamnar i A3,
+vilket gör 150-metersregeln till huvudregel för de flesta. 150-metersregeln är
+spärrad i MASTE_FINNAS.
+
+Luckan hittades genom en rak fråga, inte genom testerna. Det säger något om vad
+testsviten kan och inte kan: den vaktar att det som finns är ordagrant, inte att
+det som borde finnas är med.
+
+### D-65 — Kommunala ordningsföreskrifter: mätt, inte antaget
+Höganäs allmänna lokala ordningsföreskrifter (KFS 2026:11) nämner ingenting om
+drönare — noll träffar på drönare, obemannad, luftfartyg, modellflyg, flygning.
+Och en kommun får inte reglera luftrummet: det är Transportstyrelsen som
+beslutar om geografiska UAS-zoner, och en lokal föreskrift får inte strida mot
+nationell lag.
+
+Kvar av frågan är det kommunen faktiskt råder över: MARKEN. Ett parkreglemente
+kan träffa lyft och landning utan att nämna drönare. Det hör hemma i
+handlingsaxeln (D-61) och i luckredovisningen (D-62), inte i ett försök att
+skrapa 290 kommuners PDF:er.
+
+### D-66 — Natura 2000 är en lagregel, inte 4 136 beslut
+Undersökt: öppen WFS på geodata.naturvardsverket.se/n2000/wfs, 4 136 områden,
+ESRIGEOJSON fungerar, rika attribut (områdeskod, naturtyper, arter, län,
+kommun).
+
+Men de har INGA egna föreskrifter. Regimen är en enda paragraf — 7 kap 28 a §
+miljöbalken: "Tillstånd krävs för att bedriva verksamheter eller vidta åtgärder
+som på ett betydande sätt kan påverka miljön i ett naturområde som har
+förtecknats…".
+
+Det ändrar kostnadsbilden helt: lagret är geometri plus ETT ordagrant citat,
+inte 4 136 dokument att hämta och OCR:a. Villkoret "på ett betydande sätt kan
+påverka miljön" är dessutom en bedömning tjänsten inte får göra — lagret ska
+flagga tillståndsregimen och citera villkoret, inte påstå ett förbud.
+
+Licensen står som "Villkor okända" i metadatan. Det måste redas ut innan lagret
+läggs in.
+
 ## Öppna punkter
 
 - `base_url` pekar på pages.dev — byt när en skarp domän är bestämd.
 - Cron för månadsuppdateringen är avstängd.
 - Bakgrundskartans tile-leverantör bör omprövas om trafiken växer (D-24).
 - LFV:s ND-licens: ta om frågan innan tjänsten görs publik (D-51).
+- Natura 2000: licensen står som "Villkor okända" — red ut innan lagret läggs in (D-66).
 - Vaktläget är inte kört på en riktig telefon ute i fält — bara i
   webbläsare med simulerad position.

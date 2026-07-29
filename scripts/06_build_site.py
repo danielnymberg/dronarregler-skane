@@ -740,6 +740,62 @@ def reglersida(regler, manifest):
         data_datum=regler["hamtningsdatum"])
 
 
+def tackningstabell(omraden):
+    """Täckning per skyddstyp och per yta, inte per objekt.
+
+    Ett samlat "88 % av 10 681 objekt lästa" dolde att samtliga fem
+    interimistiska förbud var olästa — de drunknade bland 765 naturminnen, som
+    var och en är ett enskilt träd på 0,00 hektar. Objektantal väger ett
+    skyddat träd lika tungt som ett landskapsbildsskydd på 1 782 km².
+
+    Två kolumner därför: andel objekt OCH andel yta. När de skiljer sig åt är
+    det i sig upplysande — det betyder att luckan sitter i få men stora
+    områden, eller i många men obetydliga.
+    """
+    per = {}
+    for o in omraden:
+        t = o["skyddstyp"]
+        d = per.setdefault(t, {"n": 0, "last": 0, "ha": 0.0, "ha_last": 0.0,
+                               "luftfart": 0})
+        ha = o.get("area_ha") or 0.0
+        lage = o.get("luftfartslage")
+        d["n"] += 1
+        d["ha"] += ha
+        if lage not in ("utan-dokument", "olast"):
+            d["last"] += 1
+            d["ha_last"] += ha
+        if lage == "luftfart":
+            d["luftfart"] += 1
+
+    rader = sorted(per.items(), key=lambda kv: -kv[1]["ha"])
+    ut = ['<div class="tabell-scroll"><table>',
+          "<tr><th>Skyddsform</th><th>Antal</th><th>Beslut läst</th>"
+          "<th>Yta</th><th>Yta med läst beslut</th>"
+          "<th>Nämner luftfart</th></tr>"]
+    for typ, d in rader:
+        andel_n = 100 * d["last"] / d["n"] if d["n"] else 0
+        andel_ha = 100 * d["ha_last"] / d["ha"] if d["ha"] else 0
+        # En kategori där täckningen är låg ska synas, inte behöva räknas ut.
+        klass = ' class="lag-tackning"' if andel_n < 60 else ""
+        ut.append(
+            f"<tr{klass}><td>{E(typ)}</td><td>{d['n']}</td>"
+            f"<td>{andel_n:.0f} %</td>"
+            f"<td>{d['ha'] / 100:,.0f} km²</td>".replace(",", " ") +
+            f"<td>{andel_ha:.0f} %</td><td>{d['luftfart']}</td></tr>")
+    tot_n = sum(d["n"] for _, d in rader)
+    tot_last = sum(d["last"] for _, d in rader)
+    tot_ha = sum(d["ha"] for _, d in rader)
+    tot_ha_last = sum(d["ha_last"] for _, d in rader)
+    ut.append(
+        f"<tr><th>Totalt</th><th>{tot_n}</th>"
+        f"<th>{100 * tot_last / tot_n:.0f} %</th>"
+        f"<th>{tot_ha / 100:,.0f} km²</th>".replace(",", " ") +
+        f"<th>{100 * tot_ha_last / tot_ha:.0f} %</th>"
+        f"<th>{sum(d['luftfart'] for _, d in rader)}</th></tr>")
+    ut.append("</table></div>")
+    return "\n".join(ut)
+
+
 def kallsida(manifest, rapport, omraden):
     datum = manifest["hamtningsdatum"]
     per_lager = {}
@@ -750,6 +806,16 @@ def kallsida(manifest, rapport, omraden):
     d.append("<p>Ett lager per rättskälla. Lagren blandas aldrig. Nedan står vad varje "
              "lager innehåller, varifrån det kommer, vilken licens som gäller, när det "
              "hämtades och vilka luckor som är kända.</p>")
+
+    d.append("<h2>Täckning per skyddsform</h2>")
+    d.append("<p>Andel objekt och andel yta där tjänsten har läst beslutet. "
+             "Skiljer sig kolumnerna åt sitter luckan i få men stora områden — "
+             "eller i många men obetydliga. Rader under 60 % är markerade.</p>")
+    d.append(tackningstabell(omraden))
+    d.append("<p class='notis'>Måttet räknas per skyddsform och yta, inte som "
+             "ett samlat objektantal. Ett samlat tal dolde att samtliga fem "
+             "interimistiska förbud var olästa — de drunknade bland 765 "
+             "naturminnen, som var och en är ett enskilt träd.</p>")
 
     d.append("<h2>Lager i tjänstens egen databas</h2>")
     d.append('<div class="tabell-scroll"><table><thead><tr>'

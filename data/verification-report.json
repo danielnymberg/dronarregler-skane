@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "kord": "2026-07-28T16:28:17+00:00",
+ "kord": "2026-07-29T12:09:14+00:00",
  "normalisering": [
   "Unicode NFKC",
   "ligaturer (ﬁ ﬂ ﬀ ﬃ ﬄ ﬅ ﬆ) expanderas",

@@ -419,3 +419,30 @@ footer.botten {
   body { font-size: 16px; }
   h1 { font-size: 1.45rem; }
 }
+
+/* ------------------------------------------------ handlingar och luckor */
+/* Raden svarar på "får jag lyfta / landa / flyga över", inte på "vilka
+ * områden träffar min position". Det är den axel som avgör om en föreskrift
+ * angår en. "Inget hittat" betyder att källorna är tysta — aldrig att det är
+ * fritt, och därför är den raden neutral och inte grön. */
+.handlingar { list-style: none; padding: 0; margin: 0.8rem 0; }
+.handlingar li {
+  display: flex; justify-content: space-between; gap: 0.8rem;
+  padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--linje);
+  font-size: 0.92rem; align-items: baseline;
+}
+.handlingar .hnamn { font-weight: 600; flex: none; }
+.handlingar .hsvar { text-align: right; color: var(--text-svag); }
+.handlingar li.traff { background: var(--forbud-bg); border-radius: 4px; }
+.handlingar li.traff .hsvar { color: var(--text); }
+.handlingar li.traff .hnamn::before { content: "● "; color: var(--forbud-kant); }
+.handlingar li.tyst .hnamn::before { content: "○ "; color: var(--text-svag); }
+
+.luckor { margin: 1rem 0 0; font-size: 0.88rem; }
+.luckor > summary { color: var(--text-svag); cursor: pointer; }
+.luckor ul { margin: 0.4rem 0; padding-left: 1.1rem; }
+.luckor li { margin-bottom: 0.25rem; }
+.luckor p { color: var(--text-svag); margin: 0.5rem 0 0; }
+
+tr.lag-tackning td:first-child::after { content: " ⚠"; color: var(--storning-kant); }
+tr.lag-tackning { background: var(--storning-bg); }

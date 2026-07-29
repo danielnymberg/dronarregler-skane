@@ -322,6 +322,32 @@ def klassificera(citat: str, inledning: str = None, numrerad: bool = False):
         forbudsord = [m.group(0) for m in FORBUD.finditer(citat)][:1]
         return amne + [o for o in forbudsord if o not in amne]
 
+    def handlingar():
+        """Vilka HANDLINGAR citatets ord rör: lyfta, landa, flyga, vara på plats.
+
+        Det här är den axel som avgör om en föreskrift angår dig. "Vilka
+        områden träffar min position" är fel fråga — svaret blir en hög att
+        tolka. "Får jag lyfta här, landa här, flyga över" är rätt fråga, och
+        den går att besvara ur samma citat.
+
+        Härledningen är mekanisk och läsbar i citatet: den följer av vilket
+        mönster som matchade, inte av någon bedömning av vad föreskriften
+        betyder. Ett citat om "starta och landa med luftfarkost" rör lyft och
+        landning; ett om "framföra motordriven farkost" rör vad man gör på
+        marken. Vilken av dem som väger tyngst avgör läsaren.
+        """
+        ut = set()
+        if START_LANDNING.search(citat):
+            ut |= {"lyfta", "landa"}
+        if LUFTFART_STARK.search(citat) or LUFTFART_SVAG.search(citat):
+            ut.add("flyga")
+        if MOTOR.search(citat) or TILLTRADE.search(citat):
+            ut.add("marken")
+        if STORNING.search(citat) and DJURLIV.search(citat):
+            # Störning kan uppstå av alla tre, och citatet skiljer dem inte åt.
+            ut |= {"lyfta", "landa", "flyga"}
+        return sorted(ut)
+
     if stark:
         klass = "start-landningsförbud" if startland else "uttryckligt-luftfartygsförbud"
         ord_ = traffade(LUFTFART_STARK, START_LANDNING)
@@ -330,7 +356,7 @@ def klassificera(citat: str, inledning: str = None, numrerad: bool = False):
         # föreskriftsinledning är detta med stor sannolikhet beskrivande text
         # ur skötselplan eller områdesbeskrivning, inte en föreskrift. Att
         # visa sådan text som föreskrift vore ett trubbigt falsklarm (R8).
-        return None, None, []
+        return None, None, [], []
     elif LUFTFART_SVAG.search(citat) and nara_forbud(LUFTFART_SVAG):
         klass = "start-landningsförbud" if startland else "uttryckligt-luftfartygsförbud"
         ord_ = traffade(LUFTFART_SVAG, START_LANDNING)
@@ -345,7 +371,7 @@ def klassificera(citat: str, inledning: str = None, numrerad: bool = False):
         klass = "annat-läs-beslutet"
         ord_ = traffade(TILLTRADE)
     else:
-        return None, None, []
+        return None, None, [], []
 
     if forbud_i_citat:
         konfidens = "hög"
@@ -358,7 +384,7 @@ def klassificera(citat: str, inledning: str = None, numrerad: bool = False):
         konfidens = "medel"
     else:
         konfidens = "låg"
-    return klass, konfidens, ord_
+    return klass, konfidens, ord_, handlingar()
 
 
 def extrahera_dokument(dok):
@@ -389,7 +415,7 @@ def extrahera_dokument(dok):
                 sidtext, cit_offset, sidor[sidnr - 2] if sidnr > 1 else None)
             # Klassificeringen läser inledningen som sammanhang, men det som
             # visas som citat är fortfarande bara citatet.
-            klass, konfidens, traffade_ord = klassificera(citat, inledning, numrerad)
+            klass, konfidens, traffade_ord, handl = klassificera(citat, inledning, numrerad)
             if not klass:
                 continue
             nyckel = normalisera(citat)[:200]
@@ -407,6 +433,7 @@ def extrahera_dokument(dok):
                 "klassificering": klass,
                 "konfidens": konfidens,
                 "traffade_ord": traffade_ord,
+                "handlingar": handl,
                 "dokument_id": did,
                 "dokument_namn": dok.get("namn"),
                 "dokument_url": dok.get("url"),

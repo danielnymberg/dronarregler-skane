@@ -277,6 +277,7 @@ def _kompakt_citat(c):
         "d": c.get("dokument_namn"),
         "o": bool(c.get("ocr")),
         "w": c.get("traffade_ord") or [],   # orden som gjorde att citatet valdes
+        "h": c.get("handlingar") or [],     # lyfta / landa / flyga / marken
     }
 
 
@@ -656,7 +657,8 @@ def main():
             })
             bbox_index.append([nvrid, slugs[nvrid], rec["namn"], rec["skyddstyp"],
                                rec["lager"], svarslage] + bb +
-                              [len(citat), luftfartslage(citat, dokument)])
+                              [len(citat), luftfartslage(citat, dokument),
+                               rec.get("kommun") or ""])
 
         write_json(os.path.join(DATA, "omraden", f"{nvrid}.json"), omrade, compact=True)
 
@@ -670,7 +672,7 @@ def main():
         "hamtningsdatum": manifest["hamtningsdatum"],
         "kolumner": ["nvrid", "slug", "namn", "skyddstyp", "lager", "svarslage",
                      "minx", "miny", "maxx", "maxy", "antal_citat",
-                     "luftfartslage"],
+                     "luftfartslage", "kommun"],
         "rader": bbox_index,
     }, compact=True)
 

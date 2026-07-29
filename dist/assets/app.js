@@ -231,7 +231,76 @@
   }
 
   /* ============================================================ bedömning */
-  function bedom(lon, lat, omradesTraffar, citatPerNvrid) {
+  /* ---------------------------------------------------- handlingsöversikt --
+   * "Vilka områden träffar min position" är fel fråga — svaret blir en hög att
+   * tolka. "Får jag lyfta här, landa här, flyga över" är rätt fråga. Samma
+   * citat besvarar bägge; det är grupperingen som skiljer.
+   *
+   * Raden säger vad KÄLLORNA NÄMNER om handlingen, aldrig om den är tillåten.
+   * "Inget hittat" betyder att tjänstens källor är tysta — inte att det är fritt. */
+  var HANDLINGAR = [
+    { id: "lyfta", ord: "Lyfta här" },
+    { id: "landa", ord: "Landa här" },
+    { id: "flyga", ord: "Flyga över" },
+    { id: "marken", ord: "Vara här med utrustningen" }
+  ];
+
+  function handlingsoversikt(poster) {
+    var per = { lyfta: [], landa: [], flyga: [], marken: [] };
+    poster.forEach(function (p) {
+      if (p.typ === "lfv") {
+        // En luftrumszon som når marken berör alla tre luftburna handlingar.
+        var mal = p.zon.nar_marken ? ["lyfta", "landa", "flyga"] : ["flyga"];
+        mal.forEach(function (h) { per[h].push(p.zon.namn); });
+        return;
+      }
+      (p.citat || []).forEach(function (c) {
+        (c.h || []).forEach(function (h) {
+          if (per[h] && per[h].indexOf(p.omrade.namn) < 0) per[h].push(p.omrade.namn);
+        });
+      });
+    });
+    return HANDLINGAR.map(function (h) {
+      return { ord: h.ord, kallor: per[h.id] };
+    });
+  }
+
+  function handlingsHtml(rader) {
+    return '<ul class="handlingar">' + rader.map(function (r) {
+      var traff = r.kallor.length > 0;
+      return '<li class="' + (traff ? "traff" : "tyst") + '">' +
+        '<span class="hnamn">' + esc(r.ord) + "</span>" +
+        '<span class="hsvar">' + (traff
+          ? esc(r.kallor.slice(0, 2).join(", ")) +
+            (r.kallor.length > 2 ? " +" + (r.kallor.length - 2) : "")
+          : "inget hittat i källorna") + "</span></li>";
+    }).join("") + "</ul>";
+  }
+
+  /* ------------------------------------------------------- luckredovisning --
+   * Det som INTE kontrollerades ska stå i svaret, inte i en fotnot någon
+   * annanstans. Annars läses tystnad som klartecken, vilket är hela felet
+   * tjänsten finns till för att undvika. */
+  function luckorHtml(kommun) {
+    var rader = [
+      "Tillfälliga restriktioner och NOTAM — kontrollera hos " +
+        '<a href="' + esc(LFV.dronechart) + '" rel="noopener">LFV</a>',
+      kommun
+        ? "Kommunala föreskrifter för " + esc(kommun) + " mark — parkreglementen " +
+          "och strandregler kan träffa lyft och landning"
+        : "Kommunala föreskrifter om mark — parkreglementen och strandregler",
+      "Skyddsobjekt enligt skyddslagen — var de ligger publiceras inte samlat",
+      "Markägarens medgivande för lyft och landning",
+      "Natura 2000"
+    ];
+    return '<details class="luckor"><summary>Detta kontrollerades inte</summary>' +
+      "<ul><li>" + rader.join("</li><li>") + "</li></ul>" +
+      '<p>Tjänsten täcker skyddad natur ur Naturvårdsregistret, luftrummet ur ' +
+      'LFV:s DAIM och de författningar som listas på <a href="/regler/">' +
+      "reglerna</a>. Övrigt måste du kontrollera själv.</p></details>";
+  }
+
+  function bedom(lon, lat, omradesTraffar, citatPerNvrid, kommun) {
     var zoner = lfvTraffar(lon, lat);
     var poster = [];
 
@@ -563,12 +632,16 @@
               .filter(function (r) { return punktIGeometri(lon, lat, omraden[r[0]]); })
               .map(function (r) {
                 return { nvrid: r[0], slug: r[1], namn: r[2], skyddstyp: r[3],
-                         antalCitat: r[10], luftfartslage: r[11] };
+                         antalCitat: r[10], luftfartslage: r[11], kommun: r[12] };
               });
             var citat = {};
             Object.assign(citat, u.storningscitat);
             Object.assign(citat, luftfartsCitat);
-            visaSvar(lon, lat, traffar, u.rader, omraden, citat, acc);
+            // Kommunen behovs for luckredovisningen. Star man utanfor alla
+            // omraden tas den fran narmaste rad i rutan i stallet.
+            var kommun = (traffar[0] && traffar[0].kommun) ||
+              ((u.rader[0] || [])[12]) || "";
+            visaSvar(lon, lat, traffar, u.rader, omraden, citat, acc, kommun);
           });
         })
         .catch(function (e) {
@@ -605,8 +678,8 @@
       return lista.slice(0, 6);
     }
 
-    function visaSvar(lon, lat, traffar, rader, geometrier, citat, acc) {
-      var res = bedom(lon, lat, traffar, citat);
+    function visaSvar(lon, lat, traffar, rader, geometrier, citat, acc, kommun) {
+      var res = bedom(lon, lat, traffar, citat, kommun);
       var lage = LAGE[res.niva];
       var rubrik = (lage.svag && !foreskriftBelagd(res)) ? lage.svag : lage.rubrik;
       var h = "";
@@ -625,6 +698,8 @@
       }
       h += '<div class="svar svar-' + lage.klass + '">' +
            "<strong>" + esc(rubrik) + "</strong><p>" + esc(underrubrik) + "</p></div>";
+
+      h += handlingsHtml(handlingsoversikt(res.poster));
 
       res.poster.forEach(function (p) {
         h += p.typ === "lfv" ? zonHtml(p.zon) : omradeHtml(p);
@@ -654,6 +729,7 @@
         h += '<p class="notis">GPS-osäkerhet ±' + Math.round(acc) +
              " m. Står du nära en gräns kan svaret gälla fel sida av den.</p>";
       }
+      h += luckorHtml(kommun);
       h += '<p class="ansvar">' + (window.DK_ANSVARSTEXT || "") + "</p>";
       visaPanel(h, String(res.niva));
       return res;
