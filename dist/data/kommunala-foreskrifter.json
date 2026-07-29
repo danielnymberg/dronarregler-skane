@@ -1,0 +1,100 @@
+{
+ "schema_version": 1,
+ "hamtningsdatum": "2026-07-29",
+ "beskrivning": "Kommunala ordningsföreskrifter, kontrollerade en kommun i taget. Registret generaliserar INTE: en kommun som inte står här är inte kontrollerad, vilket är något annat än att den saknar regler.",
+ "strukturell_not": "En kommun får inte reglera luftrummet — det är Transportstyrelsen som beslutar om geografiska UAS-zoner enligt artikel 15 i EU 2019/947, och en lokal föreskrift får inte strida mot nationell lag. Kommunen råder däremot över marken, vilket kan träffa lyft och landning.",
+ "antal_kontrollerade": 7,
+ "antal_med_luftfartstraff": 0,
+ "kommuner": {
+  "Höganäs": {
+   "status": "kontrollerad",
+   "dokument": "Allmänna lokala ordningsföreskrifter KFS 2026:11",
+   "url": "https://www.hoganas.se/download/18.3d4a511a188bd9ee1364e17/1782882140176/Allm%C3%A4nna%20lokala%20ordningsf%C3%B6reskrifter%20f%C3%B6r%20H%C3%B6gan%C3%A4s%20kommun%20KFS%202026:11.pdf",
+   "sha256": "dbce67e88d5c6652a1e3e8a78a71dc408abdd59d1d343962ba2ccbe5fb482e24",
+   "tecken": 16627,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Helsingborg": {
+   "status": "kontrollerad",
+   "dokument": "Allmänna lokala ordningsföreskrifter, dec 2024",
+   "url": "https://media.helsingborg.se/uploads/networks/4/sites/141/2024/12/allm-lok-ordn-foreskr-m-bilaga-1_4.pdf",
+   "sha256": "73909a0de4d106b75e8149f7082395d0638e083a59109f55156c0edb4fbd1a93",
+   "tecken": 17068,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Stockholm": {
+   "status": "kontrollerad",
+   "dokument": "Allmänna lokala ordningsföreskrifter",
+   "url": "https://start.stockholm/om-stockholms-stad/politik-och-demokrati/styrdokument/allmanna-lokala-ordningsforeskrifter-i-stockholm/",
+   "sha256": "b0d80a4717a3ec0c1986a0af5451e6d8da6f7a2dd852adc2611b3b538bcdef02",
+   "tecken": 20765,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Eskilstuna": {
+   "status": "kontrollerad",
+   "dokument": "Lokala ordningsföreskrifter",
+   "url": "https://www.eskilstuna.se/kommun-och-politik/trygg-och-saker-stad/lokala-ordningsforeskrifter",
+   "sha256": "fbf5b042d57f5ee6dc411e39f9f8235a4fd192112ecf8b9e7e65a0c5a3205097",
+   "tecken": 15690,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Sandviken": {
+   "status": "kontrollerad",
+   "dokument": "Lokala ordningsföreskrifter",
+   "url": "https://sandviken.se/kommunpolitik/lokalaforeskrifterochstyrdokument/lokalaordningsforeskrifter.516.html",
+   "sha256": "70f8e58f7721ca4a07c2f4367e7e807db2090e6d445365b386c2aab68366c319",
+   "tecken": 12547,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Oxelösund": {
+   "status": "kontrollerad",
+   "dokument": "Lokala ordningsföreskrifter",
+   "url": "https://www.oxelosund.se/trafik-och-infrastruktur/lokala-ordningsforeskrifter",
+   "sha256": "710dc9ee1030a91da524183e13923d2592af4b10c03e9efb0894c26ecd7cc032",
+   "tecken": 29347,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Avesta": {
+   "status": "kontrollerad",
+   "dokument": "Lokala ordningsföreskrifter",
+   "url": "https://avesta.se/stod-och-omsorg/trygghet-och-sakerhet/brottsforebyggande/lokala-ordningsforeskrifter/",
+   "sha256": "02e90d8ff6718bd3674ef3b28f92430378d849850fb668d8f09023c900ccf08b",
+   "tecken": 23683,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Östhammar": {
+   "status": "endast-lanksida",
+   "dokument": "Lokala ordningsföreskrifter",
+   "url": "https://www.osthammar.se/sv/dokument/ordningsregler-och-foreskrifter/lokala-ordningsforeskrifter/",
+   "sha256": "99eb3428fa13b9424b2bb929260b54ba50b7de47dbecf32cb235a3f8f620f19a",
+   "tecken": 2929,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  },
+  "Bollnäs": {
+   "status": "endast-lanksida",
+   "dokument": "Lokala ordningsföreskrifter",
+   "url": "https://bollnas.se/kommun-och-politik/kommunfakta/regler-och-styrande-dokument/lokala-ordningsforeskrifter",
+   "sha256": "31de1977d42e5fa6d92ca1291a15e517ee8ab70f127684441db5216ace90da6e",
+   "tecken": 7963,
+   "kontrollerad": "2026-07-29",
+   "luftfartstraffar": [],
+   "marktraffar": []
+  }
+ }
+}

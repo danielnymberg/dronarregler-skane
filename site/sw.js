@@ -39,7 +39,8 @@ var OFFLINEDATA = [
   "/data/luftfart.json",
   // De allmänna reglerna är 14 kB och gäller överallt — de ska finnas offline
   // av precis samma skäl som luftrummet.
-  "/data/regler.json"
+  "/data/regler.json",
+  "/data/kommunala-foreskrifter.json"
 ];
 
 self.addEventListener("install", function (e) {

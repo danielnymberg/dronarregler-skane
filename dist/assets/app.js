@@ -217,6 +217,19 @@
     }).catch(function () { reglerData = { avsnitt: [], kallor: {} }; return reglerData; });
   }
 
+  /* ================================== kommunala föreskrifter, per kommun ==
+   * Registret generaliserar inte. En kommun som inte står i det är INTE
+   * kontrollerad, vilket är något annat än att den saknar regler — och det är
+   * skillnaden luckredovisningen ska visa. */
+  var kommunData = null;
+  function laddaKommunala() {
+    if (kommunData) return Promise.resolve(kommunData);
+    return hamta(DATA + "/kommunala-foreskrifter.json").then(function (d) {
+      kommunData = d;
+      return d;
+    }).catch(function () { kommunData = { kommuner: {} }; return kommunData; });
+  }
+
   /* ====================================================== drönarprofiler ==
    * Vilka avståndsregler som gäller beror på drönarens klassmärkning och vikt.
    * Det är en uppgift DU har och tjänsten inte har — precis som vägmärkets
@@ -412,14 +425,49 @@
    * Det som INTE kontrollerades ska stå i svaret, inte i en fotnot någon
    * annanstans. Annars läses tystnad som klartecken, vilket är hela felet
    * tjänsten finns till för att undvika. */
+  /* Kommunraden skiljer tre lägen åt: kontrollerad utan träff, kontrollerad
+   * MED träff, och inte kontrollerad. Den tredje är en lucka och ska aldrig
+   * se ut som den första. */
+  function kommunrad(kommun) {
+    var reg = (kommunData && kommunData.kommuner) || {};
+    /* Kommunfältet är FLERVÄRT — ett område kan spänna över flera kommuner
+     * ("Båstad, Halmstad, Höganäs"). Och står man utanför alla områden finns
+     * ingen kommunuppgift alls; att då plocka kommunen från ett godtyckligt
+     * grannområde gav Helsingborg svaret "Båstad, Halmstad, Höganäs".
+     * Tjänsten gissar därför inte kommun — den säger vilka som är
+     * kontrollerade och överlåter åt läsaren att veta var hen står. */
+    var namn = String(kommun || "").split(/\s*,\s*/).filter(Boolean);
+    var traffade = namn.map(function (n) { return reg[n]; })
+      .filter(function (k) { return k && k.status === "kontrollerad"; });
+
+    if (traffade.length) {
+      var k = traffade[0];
+      var i = namn.filter(function (n) { return reg[n] && reg[n].status === "kontrollerad"; });
+      if ((k.luftfartstraffar || []).length || (k.marktraffar || []).length) {
+        return "Kommunala föreskrifter för " + esc(i.join(", ")) +
+          " — <strong>träff</strong>, se " + esc(k.dokument);
+      }
+      return "Kommunala föreskrifter för " + esc(i.join(", ")) + " — kontrollerade " +
+        esc(k.kontrollerad) + ", <strong>ingenting om drönare eller farkost</strong> " +
+        'i <a href="' + esc(k.url) + '" rel="noopener">' + esc(k.dokument) + "</a>.";
+    }
+
+    var kontrollerade = Object.keys(reg).filter(function (n) {
+      return reg[n].status === "kontrollerad";
+    });
+    return "Kommunala föreskrifter — <strong>inte kontrollerade för din kommun</strong>. " +
+      "Kommunen får inte reglera luftrummet, men råder över marken: " +
+      "parkreglementen och badplatsföreskrifter kan träffa lyft och landning." +
+      (kontrollerade.length
+        ? " Hittills kontrollerade: " + esc(kontrollerade.join(", ")) + "."
+        : "");
+  }
+
   function luckorHtml(kommun) {
     var rader = [
       "Tillfälliga restriktioner och NOTAM — kontrollera hos " +
         '<a href="' + esc(LFV.dronechart) + '" rel="noopener">LFV</a>',
-      kommun
-        ? "Kommunala föreskrifter för " + esc(kommun) + " mark — parkreglementen " +
-          "och strandregler kan träffa lyft och landning"
-        : "Kommunala föreskrifter om mark — parkreglementen och strandregler",
+      kommunrad(kommun),
       "Skyddsobjekt enligt skyddslagen — var de ligger publiceras inte samlat",
       "Markägarens medgivande för lyft och landning",
       "Natura 2000"
@@ -772,7 +820,8 @@
 
     function svaraForPosition(lon, lat, acc) {
       visaPanel('<p class="laddstatus">Kontrollerar …</p>');
-      Promise.all([laddaLfv(), laddaLuftfart(), underlagFor(lon, lat), laddaRegler()])
+      Promise.all([laddaLfv(), laddaLuftfart(), underlagFor(lon, lat), laddaRegler(),
+                   laddaKommunala()])
         .then(function (allt) {
           var u = allt[2], omraden = u.omraden, sett = {};
           var kandidater = u.rader.filter(function (r) {
@@ -798,10 +847,10 @@
             var citat = {};
             Object.assign(citat, u.storningscitat);
             Object.assign(citat, luftfartsCitat);
-            // Kommunen behovs for luckredovisningen. Star man utanfor alla
-            // omraden tas den fran narmaste rad i rutan i stallet.
-            var kommun = (traffar[0] && traffar[0].kommun) ||
-              ((u.rader[0] || [])[12]) || "";
+            // Kommunen tas BARA från ett område man faktiskt står i. Att
+            // falla tillbaka på en godtycklig rad i rutan gav fel kommun —
+            // Helsingborg fick "Båstad, Halmstad, Höganäs".
+            var kommun = (traffar[0] && traffar[0].kommun) || "";
             visaSvar(lon, lat, traffar, u.rader, omraden, citat, acc, kommun);
           });
         })
@@ -1039,7 +1088,8 @@
     });
 
     laddaForVy();
-    Promise.all([laddaLfv(), laddaLuftfart(), laddaRegler()]).then(function () {
+    Promise.all([laddaLfv(), laddaLuftfart(), laddaRegler(), laddaKommunala()])
+      .then(function () {
       ritaLfv();
       if (lfvMeta) {
         var el = document.getElementById("lfvmeta");

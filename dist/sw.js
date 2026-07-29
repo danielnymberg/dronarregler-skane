@@ -14,7 +14,7 @@
  * Ett bygge som misslyckas ska få sajten att se gammal ut, inte fräsch —
  * därför är HTML alltid nät-först och data alltid revalideras i bakgrunden.
  */
-var VERSION = "2562fd0b";
+var VERSION = "bb9ffbe8";
 var SKAL = "dk-skal-" + VERSION;
 var DATA_CACHE = "dk-data-" + VERSION;
 var KARTRUTOR = "dk-kartrutor-v1";
@@ -39,7 +39,8 @@ var OFFLINEDATA = [
   "/data/luftfart.json",
   // De allmänna reglerna är 14 kB och gäller överallt — de ska finnas offline
   // av precis samma skäl som luftrummet.
-  "/data/regler.json"
+  "/data/regler.json",
+  "/data/kommunala-foreskrifter.json"
 ];
 
 self.addEventListener("install", function (e) {
