@@ -36,8 +36,8 @@ import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from lib.common import (CONFIG, DATA, ensure_dir, fetch, log, sha256_bytes,
-                        today, write_json)
+from lib.common import (CACHE, CONFIG, DATA, ensure_dir, fetch, log,
+                        sha256_bytes, today, write_json)
 from lib.geom import bbox, esri_till_geojson
 from lib.rutnat import GEOMETRI_GRADER, rutor_for_bbox
 
@@ -49,6 +49,27 @@ TYPNAMN = "N2000_WFS:N2000"
 # polygon in i dussintals rutor.
 STOR_GRANS = 10 * 1024
 
+# Cloudflare Pages tar max 25 MB per fil. "Torne och Kalix älvsystem" har 3 980
+# delar och 1,95 miljoner punkter spridda över hela Norrbotten och blir 37 MB
+# som en fil. Områden över den här gränsen lagras DEL FÖR DEL i rutnätet: varje
+# polygondel läggs bara i de rutor dess egen bbox rör. Ingen geometri ändras —
+# det är samma polygoner, bara indexerade finare.
+DELA_GRANS = 5 * 1024 * 1024
+
+DECIMALER = 5          # ~1 m, långt under GPS-osäkerheten
+
+
+def avrunda(c):
+    if isinstance(c[0], (int, float)):
+        return [round(c[0], DECIMALER), round(c[1], DECIMALER)]
+    return [avrunda(x) for x in c]
+
+
+def ring_bbox(ring):
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    return [min(xs), min(ys), max(xs), max(ys)]
+
 
 def wfs_url(**extra):
     p = {
@@ -59,7 +80,16 @@ def wfs_url(**extra):
         "srsName": "EPSG:4326",
         "outputFormat": "ESRIGEOJSON",
     }
-    p.update({k: v for k, v in extra.items() if v is not None})
+    # None BETYDER "ta bort parametern", inte "hoppa över argumentet". Den
+    # skillnaden var en tyst bugg: resultType=hits skickades med outputFormat
+    # kvar, servern svarade JSON i stället för XML, antalet gick inte att läsa
+    # och avstämningen mot tyst kapning passerade utan att ha körts. En
+    # säkerhetskontroll som inte kan köra ska säga ifrån, inte tiga.
+    for k, v in extra.items():
+        if v is None:
+            p.pop(k, None)
+        else:
+            p[k] = v
     return f"{WFS}?{urllib.parse.urlencode(p)}"
 
 
@@ -89,8 +119,26 @@ def stad(v):
 
 def main():
     vantat = antal_enligt_servern()
+    if vantat is None:
+        raise SystemExit(
+            "Steg 10 avbryter: kunde inte läsa antalet objekt från servern. "
+            "Utan det går avstämningen mot tyst kapning inte att göra, och en "
+            "kontroll som inte kan köra får inte passera som godkänd.")
     log(f"  servern uppger {vantat} Natura 2000-områden")
-    ra = fetch(wfs_url(), min_interval=1.0, timeout=300)
+    # Råsvaret cachas. Steg 10 gjorde det INTE i första versionen, till
+    # skillnad från steg 1 och 2, och när lagringsmodellen visade sig behöva
+    # göras om kostade det en timmes omhämtning. Ett steg vars utdata kan behöva
+    # byggas om ska aldrig behöva fråga källan igen.
+    rafil = os.path.join(ensure_dir(os.path.join(CACHE, "n2000")), "n2000.json")
+    if os.path.exists(rafil):
+        with open(rafil, "rb") as fh:
+            ra = fh.read()
+        log(f"  {len(ra) // 1048576} MB ur cache")
+    else:
+        ra = fetch(wfs_url(), min_interval=1.0, timeout=900)
+        with open(rafil, "wb") as fh:
+            fh.write(ra)
+        log(f"  {len(ra) // 1048576} MB hämtat och cachat")
     hashv = sha256_bytes(ra)
     d = json.loads(ra.decode("utf-8"))
     features = d.get("features", [])
@@ -101,7 +149,7 @@ def main():
 
     ensure_dir(os.path.join(DATA, "n2000"))
     ensure_dir(os.path.join(DATA, "n2000", "stora"))
-    per_ruta, stora, index = {}, {}, []
+    per_ruta, stora, index, delade = {}, {}, [], {}
     utan_geometri = 0
 
     for f in features:
@@ -111,6 +159,7 @@ def main():
         if not geom:
             utan_geometri += 1
             continue
+        geom = {"type": geom["type"], "coordinates": avrunda(geom["coordinates"])}
         kod = stad(a.get("OMRADESKOD"))
         post = {
             "kod": kod,
@@ -127,7 +176,18 @@ def main():
 
         rutor = rutor_for_bbox(bb, GEOMETRI_GRADER)
         kompakt = json.dumps(geom, separators=(",", ":"))
-        if len(kompakt) > STOR_GRANS and len(rutor) > 1:
+        if len(kompakt) > DELA_GRANS:
+            # Jättar delas per polygondel, annars spränger de filtaket.
+            delar = (geom["coordinates"] if geom["type"] == "MultiPolygon"
+                     else [geom["coordinates"]])
+            delade[kod] = len(delar)
+            for d in delar:
+                for rid in rutor_for_bbox(ring_bbox(d[0]), GEOMETRI_GRADER):
+                    cell = per_ruta.setdefault(rid, {"omraden": {}, "stora": []})
+                    cell["omraden"].setdefault(kod, {"type": "MultiPolygon",
+                                                     "coordinates": []})
+                    cell["omraden"][kod]["coordinates"].append(d)
+        elif len(kompakt) > STOR_GRANS and len(rutor) > 1:
             stora[kod] = geom
             for rid in rutor:
                 per_ruta.setdefault(rid, {"omraden": {}, "stora": []})["stora"].append(kod)
@@ -159,9 +219,15 @@ def main():
     total = sum(os.path.getsize(os.path.join(DATA, "n2000", f))
                 for f in os.listdir(os.path.join(DATA, "n2000"))
                 if f.endswith(".json"))
+    storsta = max((os.path.getsize(os.path.join(DATA, "n2000", f)), f)
+                  for f in os.listdir(os.path.join(DATA, "n2000"))
+                  if f.endswith(".json"))
     log(f"Steg 10 klart: {len(index)} områden i {len(per_ruta)} rutor "
-        f"({len(stora)} stora i egna filer), {total // 1024} kB, "
+        f"({len(stora)} i egna filer, {len(delade)} delade per polygondel), "
+        f"{total // 1048576} MB, största ruta {storsta[0] // 1048576} MB, "
         f"{utan_geometri} utan geometri")
+    if delade:
+        log(f"  delade: {', '.join(f'{k} ({n} delar)' for k, n in delade.items())}")
     return 0
 
 

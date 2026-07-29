@@ -97,7 +97,16 @@ def wfs_url(typnamn, **extra):
         "srsName": "EPSG:4326",
         "outputFormat": "application/json",
     }
-    p.update({k: v for k, v in extra.items() if v is not None})
+    # None BETYDER "ta bort parametern", inte "hoppa över argumentet". Den
+    # skillnaden var en tyst bugg: resultType=hits skickades med outputFormat
+    # kvar, servern svarade JSON i stället för XML, antalet gick inte att läsa
+    # och avstämningen mot tyst kapning passerade utan att ha körts. En
+    # säkerhetskontroll som inte kan köra ska säga ifrån, inte tiga.
+    for k, v in extra.items():
+        if v is None:
+            p.pop(k, None)
+        else:
+            p[k] = v
     return f"{WFS}?{urllib.parse.urlencode(p)}"
 
 
