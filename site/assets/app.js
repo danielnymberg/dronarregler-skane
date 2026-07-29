@@ -37,7 +37,11 @@
    * före "läst, inget om luftfart" (3): en lucka i underlaget ska aldrig se
    * lugnare ut än ett faktiskt besked. */
   var RANG = {
-    lfv: 0, luftfart: 0, storning: 1,
+    /* En LFV-zon som nar marken beror varje hojd och ar niva 0. En zon vars
+     * underkant ligger hogt gor det inte — den fick tidigare samma rodmarkering,
+     * vilket ar precis den trubbiga larmning uppdraget raknade som felklass 3.
+     * ES R129 Helsingborg borjar pa 400 ft och malade hela staden rod. */
+    lfv: 0, "lfv-hog": 2, luftfart: 0, storning: 1,
     olast: 2, "utan-dokument": 2,
     "last-annat": 3, "last-tomt": 3
   };
@@ -250,13 +254,23 @@
     poster.forEach(function (p) {
       if (p.typ === "lfv") {
         // En luftrumszon som når marken berör alla tre luftburna handlingar.
-        var mal = p.zon.nar_marken ? ["lyfta", "landa", "flyga"] : ["flyga"];
-        mal.forEach(function (h) { per[h].push(p.zon.namn); });
+        // En zon som börjar högt berör bara flygning, och bara villkorat —
+        // om du alls kommer upp i den beror på terränghöjden.
+        if (p.zon.nar_marken) {
+          ["lyfta", "landa", "flyga"].forEach(function (h) {
+            per[h].push({ namn: p.zon.namn, villkorad: false });
+          });
+        } else {
+          per.flyga.push({ namn: p.zon.namn + " (från " + p.zon.underkant_m + " m ö.h.)",
+                           villkorad: true });
+        }
         return;
       }
       (p.citat || []).forEach(function (c) {
         (c.h || []).forEach(function (h) {
-          if (per[h] && per[h].indexOf(p.omrade.namn) < 0) per[h].push(p.omrade.namn);
+          if (!per[h]) return;
+          if (per[h].some(function (x) { return x.namn === p.omrade.namn; })) return;
+          per[h].push({ namn: p.omrade.namn, villkorad: false });
         });
       });
     });
@@ -267,13 +281,18 @@
 
   function handlingsHtml(rader) {
     return '<ul class="handlingar">' + rader.map(function (r) {
-      var traff = r.kallor.length > 0;
-      return '<li class="' + (traff ? "traff" : "tyst") + '">' +
+      if (!r.kallor.length) {
+        return '<li class="tyst"><span class="hnamn">' + esc(r.ord) + "</span>" +
+          '<span class="hsvar">inget hittat i källorna</span></li>';
+      }
+      // Villkorad = alla källor bakom raden är höga luftrumszoner. Då är
+      // träffen beroende av vilken höjd du faktiskt flyger på.
+      var villkorad = r.kallor.every(function (k) { return k.villkorad; });
+      var namn = r.kallor.map(function (k) { return k.namn; });
+      return '<li class="' + (villkorad ? "villkorad" : "traff") + '">' +
         '<span class="hnamn">' + esc(r.ord) + "</span>" +
-        '<span class="hsvar">' + (traff
-          ? esc(r.kallor.slice(0, 2).join(", ")) +
-            (r.kallor.length > 2 ? " +" + (r.kallor.length - 2) : "")
-          : "inget hittat i källorna") + "</span></li>";
+        '<span class="hsvar">' + esc(namn.slice(0, 2).join(", ")) +
+        (namn.length > 2 ? " +" + (namn.length - 2) : "") + "</span></li>";
     }).join("") + "</ul>";
   }
 
@@ -305,7 +324,8 @@
     var poster = [];
 
     zoner.forEach(function (z) {
-      poster.push({ typ: "lfv", rang: rangFor("lfv"), zon: z });
+      poster.push({ typ: "lfv", zon: z,
+                    rang: rangFor(z.nar_marken ? "lfv" : "lfv-hog") });
     });
     omradesTraffar.forEach(function (o) {
       var lage = o.luftfartslage || "utan-dokument";
@@ -369,13 +389,42 @@
       "</figcaption></figure>";
   }
 
+  /* Höjden med källvärdet först och metern inom parentes.
+   *
+   * Ett oomräknat "400" är oanvändbart för den vars drönare visar meter, och
+   * omräkningen är exakt aritmetik (1 ft = 0,3048 m) — inte en bedömning. */
+  function hojdText(z) {
+    var kalla = (z.underkant || "?") + "–" + (z.overkant || "?");
+    if (z.underkant_m == null && z.overkant_m == null) return esc(kalla);
+    var u = z.underkant_m == null ? "?" : z.underkant_m;
+    var o = z.overkant_m == null ? "?" : z.overkant_m;
+    var enhet = z.hojdreferens === "FL" ? "" : " ft";
+    return esc(kalla) + enhet + ' <span class="meter">(' + esc(u) + "–" + esc(o) +
+           " m)</span>";
+  }
+
   function zonHtml(z) {
-    var hojd = (z.underkant || "?") + "–" + (z.overkant || "?");
-    return '<div class="post post-lfv">' +
+    var hog = !z.nar_marken;
+    /* En zon vars underkant ligger över marken är den vanligaste orsaken till
+     * falsklarm hos andra tjänster: hela Helsingborg målas rött av ES R129,
+     * som börjar på 400 ft. Den renderas därför dämpat och med underkanten
+     * utskriven — men den döljs aldrig, för jämförelsen mot drönarens 120 m
+     * över MARKEN kräver terränghöjden, och den vet inte tjänsten. */
+    return '<div class="post post-' + (hog ? "lfv-hog" : "lfv") + '">' +
       '<div class="posttopp"><span class="lagerkod lager-' + esc(z.lager) + '">' +
       esc(z.lager) + '</span><strong>' + esc(z.namn) + "</strong></div>" +
+      (hog
+        ? '<p class="hojdnot">Zonens underkant ligger <strong>' +
+          esc(z.underkant_m) + " m över havet</strong>, inte vid marken. " +
+          "Öppen kategori tillåter högst 120 m över <em>marken</em> — hur de " +
+          "två förhåller sig beror på terrängens höjd där du står, vilket " +
+          "tjänsten inte känner till.</p>"
+        : "") +
       '<dl class="fakta">' +
-      "<dt>Höjd</dt><dd>" + esc(hojd) + "</dd>" +
+      "<dt>Höjd</dt><dd>" + hojdText(z) +
+      (z.hojdreferens === "AMSL" ? ' <span class="ref">över havet</span>'
+       : z.hojdreferens === "GND" ? ' <span class="ref">från marken</span>' : "") +
+      "</dd>" +
       (z.icao ? "<dt>Flygplats</dt><dd>" + esc(z.icao) + "</dd>" : "") +
       (z.galler_fran ? "<dt>Gäller från</dt><dd>" + esc(z.galler_fran) + "</dd>" : "") +
       "</dl>" +
@@ -682,6 +731,11 @@
       var res = bedom(lon, lat, traffar, citat, kommun);
       var lage = LAGE[res.niva];
       var rubrik = (lage.svag && !foreskriftBelagd(res)) ? lage.svag : lage.rubrik;
+      // Niva 2 delas av "beslut ej last" och "luftrumszon ovanfor dig". De ar
+      // inte samma besked och far inte ha samma rubrik.
+      if (res.niva === 2 && res.poster.length && res.poster[0].typ === "lfv") {
+        rubrik = "Luftrumszon ovanför dig — beror på vilken höjd du flyger på";
+      }
       var h = "";
 
       var underrubrik;

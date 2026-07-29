@@ -30,18 +30,35 @@ tjänsten publik är det här den första frågan att ta om.
 Höjdnotation
 ------------
 LFV publicerar undre och övre gräns som i AIP: `GND` för marken, `FL nnn` för
-flygnivå, i övrigt fot. Värdena skrivs vidare ORDAGRANT — vi räknar inte om
-dem till meter, eftersom en avrundning i fel riktning är precis den sortens
-tyst felkälla tjänsten finns till för att undvika.
+flygnivå, i övrigt fot. Källvärdet skrivs alltid vidare ORDAGRANT.
 
-Det enda vi härleder är den mekaniska flaggan `nar_marken` (LOWER == "GND").
-Den avgör om zonen alls kan beröra en drönare i öppen kategori, och härledningen
-är ordagrant avläsbar i källfältet som följer med.
+Första versionen räknade medvetet INTE om till meter, med motiveringen att en
+avrundning i fel riktning är en tyst felkälla. Det var överdrivet försiktigt.
+1 ft = 0,3048 m är exakt aritmetik, inte en bedömning, och ett oomräknat "400"
+är oanvändbart för den vars drönare visar meter. Källvärdet står först, metern
+inom parentes. Avrundning sker UPPÅT i bägge ändar — då överdrivs zonens
+utsträckning marginellt, vilket är den säkra riktningen.
+
+Vad de numeriska värdena är höjd ÖVER är avgörande och belagt ur LFV:s egen
+text: kommentarsfälten skriver ut "AMSL" 34 gånger ("The lower limit of
+Västerås CTR in this part is 1000 ft AMSL"), "AGL" 16 gånger och "GND" 14.
+Numeriska gränser är alltså höjd över HAVET, medan en drönares 120-metersgräns
+i öppen kategori är höjd över MARKEN.
+
+Det betyder att en zon med underkant 400 ft inte utan vidare kan jämföras med
+120 m: ligger terrängen 50 m över havet är 400 ft AMSL bara ~72 m över marken.
+Tjänsten redovisar därför bägge talen och säger att jämförelsen kräver
+terränghöjden — den drar inte slutsatsen åt någon.
+
+`nar_marken` (LOWER == "GND") är den enda helt entydiga flaggan: når zonen
+marken berör den varje höjd, oavsett terräng.
 """
 from __future__ import annotations
 
 import json
+import math
 import os
+import re
 import sys
 import urllib.parse
 
@@ -107,6 +124,33 @@ def stad(varde):
         return ""
     s = str(varde).strip()
     return "" if s.lower() in ("", "null", "none") else s
+
+
+FOT_TILL_METER = 0.3048          # exakt per definition
+
+
+def hojd(varde):
+    """Tolka en AIP-höjd till (meter, referens, ordagrant källvärde).
+
+    Returnerar meter = None när värdet inte går att tolka. Då skriver
+    gränssnittet bara ut källvärdet — hellre inget tal än ett påhittat.
+
+    Avrundning uppåt: en zon som redovisas något högre än den är gör att man
+    tror sig vara inne i den lite längre. Det är den säkra riktningen.
+    """
+    s = stad(varde)
+    if not s:
+        return None, "okänd", s
+    if s.upper() == "GND":
+        return 0, "GND", s
+    m = re.match(r"^FL\s*(\d+)$", s, re.I)
+    if m:
+        # Flygnivå: hundratals fot, tryckhöjd. Långt ovanför drönarhöjd, men
+        # räknas om ändå så att talet går att förstå.
+        return math.ceil(int(m.group(1)) * 100 * FOT_TILL_METER), "FL", s
+    if re.fullmatch(r"\d+", s):
+        return math.ceil(int(s) * FOT_TILL_METER), "AMSL", s
+    return None, "okänd", s
 
 
 def kommentar(props):
@@ -176,14 +220,19 @@ def main():
             lower = stad(p.get("LOWER"))
             marken = lower.upper() == "GND"
             nar_marken += 1 if marken else 0
+            und_m, und_ref, und_kalla = hojd(p.get("LOWER"))
+            ovr_m, ovr_ref, ovr_kalla = hojd(p.get("UPPER"))
             zoner.append({
                 "id": f"{kod}-{stad(p.get('IDNR')) or len(zoner)}",
                 "lager": kod,
                 "namn": stad(p.get("NAMEOFAREA")) or stad(p.get("LOCATION")),
                 "plats": stad(p.get("LOCATION")),
                 "icao": stad(p.get("POSITIONINDICATOR")),
-                "underkant": lower,
-                "overkant": stad(p.get("UPPER")),
+                "underkant": und_kalla,
+                "overkant": ovr_kalla,
+                "underkant_m": und_m,
+                "overkant_m": ovr_m,
+                "hojdreferens": und_ref,
                 "nar_marken": marken,
                 "kommentar": kommentar(p),
                 "galler_fran": stad(p.get("WEF")),
@@ -212,8 +261,13 @@ def main():
         "licensnot": ("LFV:s data ingår INTE i tjänstens CC0-publicering. "
                       "Vidarelicensiera inte det här lagret."),
         "hojdnotation": ("Undre och övre gräns skrivs som i LFV:s AIP: GND = marken, "
-                         "FL nnn = flygnivå, övriga tal i fot. Värdena är ordagranna "
-                         "— tjänsten räknar inte om dem."),
+                         "FL nnn = flygnivå, övriga tal i fot. Källvärdet står "
+                         "ordagrant i `underkant`/`overkant`; `underkant_m`/`overkant_m` "
+                         "är samma värde i meter (1 ft = 0,3048 m exakt, avrundat "
+                         "uppåt). `hojdreferens` säger vad talet är höjd över: GND = "
+                         "marken, AMSL = havet, FL = tryckhöjd. En numerisk gräns är "
+                         "AMSL — den kan därför inte jämföras rakt av med en drönares "
+                         "120 m över MARKEN utan att terrängens höjd vägs in."),
         "lager": lagermeta,
         "zoner": zoner,
     }

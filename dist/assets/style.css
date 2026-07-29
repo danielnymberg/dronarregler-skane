@@ -446,3 +446,22 @@ footer.botten {
 
 tr.lag-tackning td:first-child::after { content: " ⚠"; color: var(--storning-kant); }
 tr.lag-tackning { background: var(--storning-bg); }
+
+/* ---------------------------------------- luftrumszon ovanför drönarhöjd */
+/* ES R129 börjar på 400 ft och målar hela Helsingborg rött hos andra tjänster.
+ * Zonen döljs inte — men den får inte skrika som en zon som når marken. */
+.post-lfv-hog {
+  border-left-color: var(--okant-kant);
+  background: var(--okant-bg);
+}
+.post-lfv-hog .lagerkod { background: var(--okant-kant); }
+.hojdnot {
+  margin: 0.3rem 0 0.5rem; font-size: 0.86rem;
+  padding: 0.45rem 0.6rem; border-radius: 4px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.meter { color: var(--text-svag); }
+.ref { color: var(--text-svag); font-size: 0.85em; }
+
+.handlingar li.villkorad { background: var(--okant-bg); border-radius: 4px; }
+.handlingar li.villkorad .hnamn::before { content: "◐ "; color: var(--okant-kant); }
