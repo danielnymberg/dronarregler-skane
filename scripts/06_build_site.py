@@ -1175,10 +1175,18 @@ def main():
           + "</urlset>\n")
     skriv(os.path.join(DIST, "robots.txt"),
           f"User-agent: *\nAllow: /\n\nSitemap: {BAS}/sitemap.xml\n")
+    # Datafilerna är inte versionerade i sina URL:er, till skillnad från app.js
+    # och style.css. Utan en kort cachetid kan Cloudflares kant fortsätta
+    # servera den gamla kopian efter en utrullning — det inträffade direkt efter
+    # att regler.json växte från 12 till 14 avsnitt: deployment-URL:en hade den
+    # nya filen medan produktionsdomänen serverade den gamla. Service workern
+    # hämtar nät-först och skulle då cacha in den föråldrade kopian.
     skriv(os.path.join(DIST, "_headers"),
           "/*\n  X-Content-Type-Options: nosniff\n"
           "  Referrer-Policy: no-referrer\n"
-          "  Permissions-Policy: geolocation=(self), interest-cohort=()\n")
+          "  Permissions-Policy: geolocation=(self), interest-cohort=()\n"
+          "\n/data/*\n  Cache-Control: public, max-age=300, must-revalidate\n"
+          "\n/sw.js\n  Cache-Control: no-cache\n")
 
     log(f"Steg 6 klart: {len(omraden)} områdessidor + 4 sidor i dist/")
 
