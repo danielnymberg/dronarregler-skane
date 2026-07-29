@@ -1,100 +1,210 @@
 {
- "schema_version": 1,
+ "schema_version": 2,
  "hamtningsdatum": "2026-07-29",
- "beskrivning": "Kommunala ordningsföreskrifter, kontrollerade en kommun i taget. Registret generaliserar INTE: en kommun som inte står här är inte kontrollerad, vilket är något annat än att den saknar regler.",
+ "beskrivning": "Kommunala dokument som rör drönare, kontrollerade en kommun i taget. Registret generaliserar INTE: en kommun som inte står här är inte kontrollerad, vilket är något annat än att den saknar regler.",
+ "metodnot": "Första versionen sökte drönartermer inuti ETT dokument per kommun och drog av noll träffar slutsatsen att kommunen saknade regler. Det var fel sak att söka på: Höganäs publicerar Riktlinjer för drönarverksamhet, som en sökning på kommunens webbplats hittar direkt. Registret listar därför dokument, inte kommuner.",
+ "typnot": "typ=foreskrift binder allmänheten. typ=intern är kommunens egna rutiner för sin egen verksamhet och binder inte en privat pilot — men den kan innehålla uppgifter som är värda att läsa ändå.",
  "strukturell_not": "En kommun får inte reglera luftrummet — det är Transportstyrelsen som beslutar om geografiska UAS-zoner enligt artikel 15 i EU 2019/947, och en lokal föreskrift får inte strida mot nationell lag. Kommunen råder däremot över marken, vilket kan träffa lyft och landning.",
  "antal_kontrollerade": 7,
- "antal_med_luftfartstraff": 0,
+ "antal_med_dronardokument": 2,
  "kommuner": {
   "Höganäs": {
+   "dokument": [
+    {
+     "namn": "Allmänna lokala ordningsföreskrifter KFS 2026:11",
+     "url": "https://www.hoganas.se/download/18.3d4a511a188bd9ee1364e17/1782882140176/Allm%C3%A4nna%20lokala%20ordningsf%C3%B6reskrifter%20f%C3%B6r%20H%C3%B6gan%C3%A4s%20kommun%20KFS%202026:11.pdf",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "dbce67e88d5c6652a1e3e8a78a71dc408abdd59d1d343962ba2ccbe5fb482e24",
+     "tecken": 16627,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    },
+    {
+     "namn": "Riktlinjer för drönarverksamhet i Höganäs kommun",
+     "url": "https://www.hoganas.se/download/18.7a54f188194d866594e4dce3/1740123018291/Riktlinjer%20f%C3%B6r%20dr%C3%B6narverksamhet.pdf",
+     "typ": "intern",
+     "status": "kontrollerad",
+     "sha256": "0c19f6c6fa7c016d6e03cdceb3895ed3f9d07c8c3add9424171a4f095b08dbe4",
+     "tecken": 5805,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [
+      "Riktlinjer FÖR DRÖNARVERKSAMHET I HÖGANÄS KOMMUN Operativa procedurer och manual för bedrivande av verksamhet med drönare 2 (4) 1. Om riktlin",
+      "linjer FÖR DRÖNARVERKSAMHET I HÖGANÄS KOMMUN Operativa procedurer och manual för bedrivande av verksamhet med drönare 2 (4) 1. Om riktlinjerna Höganäs kommun använder sig av drönare i olika sammanhang. Det kan vara allt från st",
+      "r och manual för bedrivande av verksamhet med drönare 2 (4) 1. Om riktlinjerna Höganäs kommun använder sig av drönare i olika sammanhang. Det kan vara allt från stadsplanering och dokumentation till marknadsföring och räddnings",
+      "och dokumentation till marknadsföring och räddningstjänst. Syftet med dessa riktlinjer är att säkerställa att drönarverksamheten bedrivs enligt gällande lagar och regelverk. Vissa särskilda aspekter, som spridningstillstånd och GDPR, tas",
+      "erk. Vissa särskilda aspekter, som spridningstillstånd och GDPR, tas däremot inte upp här. 2. Regelverk kring drönare Två EU-förordningar – (EU) 2019/945 och (EU) 2019/947 – styr i huvudsak regelverket kring användningen av drö",
+      "are Två EU-förordningar – (EU) 2019/945 och (EU) 2019/947 – styr i huvudsak regelverket kring användningen av drönare inom EU. Förordningen (EU) 2018/1139 är gemensam för all luftfart, och innehåller vissa övergripande bestämme"
+     ],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Allmänna lokala ordningsföreskrifter KFS 2026:11",
-   "url": "https://www.hoganas.se/download/18.3d4a511a188bd9ee1364e17/1782882140176/Allm%C3%A4nna%20lokala%20ordningsf%C3%B6reskrifter%20f%C3%B6r%20H%C3%B6gan%C3%A4s%20kommun%20KFS%202026:11.pdf",
-   "sha256": "dbce67e88d5c6652a1e3e8a78a71dc408abdd59d1d343962ba2ccbe5fb482e24",
-   "tecken": 16627,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": true,
+   "antal_traffar": 1
   },
   "Helsingborg": {
+   "dokument": [
+    {
+     "namn": "Allmänna lokala ordningsföreskrifter, dec 2024",
+     "url": "https://media.helsingborg.se/uploads/networks/4/sites/141/2024/12/allm-lok-ordn-foreskr-m-bilaga-1_4.pdf",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "73909a0de4d106b75e8149f7082395d0638e083a59109f55156c0edb4fbd1a93",
+     "tecken": 17068,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Allmänna lokala ordningsföreskrifter, dec 2024",
-   "url": "https://media.helsingborg.se/uploads/networks/4/sites/141/2024/12/allm-lok-ordn-foreskr-m-bilaga-1_4.pdf",
-   "sha256": "73909a0de4d106b75e8149f7082395d0638e083a59109f55156c0edb4fbd1a93",
-   "tecken": 17068,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": false,
+   "antal_traffar": 0
   },
   "Stockholm": {
+   "dokument": [
+    {
+     "namn": "Allmänna lokala ordningsföreskrifter",
+     "url": "https://start.stockholm/om-stockholms-stad/politik-och-demokrati/styrdokument/allmanna-lokala-ordningsforeskrifter-i-stockholm/",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "160b016769ebb52bc2138f70a36c1f509dd2aa4092b09e915bd16992b8afad76",
+     "tecken": 20765,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    },
+    {
+     "namn": "Så arbetar staden med drönare",
+     "url": "https://start.stockholm/om-stockholms-stad/sa-arbetar-staden/dronare/",
+     "typ": "intern",
+     "status": "kontrollerad",
+     "sha256": "ac4576a1c86270885d7c50a78765c5c372da06b02bcc1eda91abaccf9223e210",
+     "tecken": 6283,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [
+      "Så arbetar staden med drönare - Stockholms stad Till övergripande innehåll för webbplatsen Kakor på start.stockholm Vi använder kakor (cook",
+      "oriter ( 0 ) Teckenspråk In English Other languages Webbplatskarta Start Om Stockholms stad Så arbetar staden Drönare Drönare Dela länk Dela sida https://start.stockholm/om-stockholms-stad/sa-arbetar-staden/dronare/ Kopiera län",
+      "0 ) Teckenspråk In English Other languages Webbplatskarta Start Om Stockholms stad Så arbetar staden Drönare Drönare Dela länk Dela sida https://start.stockholm/om-stockholms-stad/sa-arbetar-staden/dronare/ Kopiera länk Länken",
+      "betar staden Drönare Drönare Dela länk Dela sida https://start.stockholm/om-stockholms-stad/sa-arbetar-staden/dronare/ Kopiera länk Länken är kopierad. Stockholms stad använder sig av drönare för att bland annat skapa kartunder",
+      "m-stockholms-stad/sa-arbetar-staden/dronare/ Kopiera länk Länken är kopierad. Stockholms stad använder sig av drönare för att bland annat skapa kartunderlag för stadens stadsutvecklingsprojekt, för trafikplanering och för viltv",
+      "för stadens stadsutvecklingsprojekt, för trafikplanering och för viltvårdsinsatser. Stockholms stad använder drönare för att med goda resultat och hög effektivitet samla in data. Data samlas in för att möjliggöra arbete inom b"
+     ],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Allmänna lokala ordningsföreskrifter",
-   "url": "https://start.stockholm/om-stockholms-stad/politik-och-demokrati/styrdokument/allmanna-lokala-ordningsforeskrifter-i-stockholm/",
-   "sha256": "b0d80a4717a3ec0c1986a0af5451e6d8da6f7a2dd852adc2611b3b538bcdef02",
-   "tecken": 20765,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": true,
+   "antal_traffar": 1
   },
   "Eskilstuna": {
+   "dokument": [
+    {
+     "namn": "Lokala ordningsföreskrifter",
+     "url": "https://www.eskilstuna.se/kommun-och-politik/trygg-och-saker-stad/lokala-ordningsforeskrifter",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "13b878a42d6fe76090e07c5e69c3cc6c6341ee10e1dd7a9463f3baeba287bb3b",
+     "tecken": 15690,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Lokala ordningsföreskrifter",
-   "url": "https://www.eskilstuna.se/kommun-och-politik/trygg-och-saker-stad/lokala-ordningsforeskrifter",
-   "sha256": "fbf5b042d57f5ee6dc411e39f9f8235a4fd192112ecf8b9e7e65a0c5a3205097",
-   "tecken": 15690,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": false,
+   "antal_traffar": 0
   },
   "Sandviken": {
+   "dokument": [
+    {
+     "namn": "Lokala ordningsföreskrifter",
+     "url": "https://sandviken.se/kommunpolitik/lokalaforeskrifterochstyrdokument/lokalaordningsforeskrifter.516.html",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "b7ef550484e4129a1792e74753335590f6aff845bb90d83bca77e3e0daad6401",
+     "tecken": 12547,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Lokala ordningsföreskrifter",
-   "url": "https://sandviken.se/kommunpolitik/lokalaforeskrifterochstyrdokument/lokalaordningsforeskrifter.516.html",
-   "sha256": "70f8e58f7721ca4a07c2f4367e7e807db2090e6d445365b386c2aab68366c319",
-   "tecken": 12547,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": false,
+   "antal_traffar": 0
   },
   "Oxelösund": {
+   "dokument": [
+    {
+     "namn": "Lokala ordningsföreskrifter",
+     "url": "https://www.oxelosund.se/trafik-och-infrastruktur/lokala-ordningsforeskrifter",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "020706c829231d2c6dce6811da3868c7e275cd976b48de2e65335615a00dd33f",
+     "tecken": 29347,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Lokala ordningsföreskrifter",
-   "url": "https://www.oxelosund.se/trafik-och-infrastruktur/lokala-ordningsforeskrifter",
-   "sha256": "710dc9ee1030a91da524183e13923d2592af4b10c03e9efb0894c26ecd7cc032",
-   "tecken": 29347,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": false,
+   "antal_traffar": 0
   },
   "Avesta": {
+   "dokument": [
+    {
+     "namn": "Lokala ordningsföreskrifter",
+     "url": "https://avesta.se/stod-och-omsorg/trygghet-och-sakerhet/brottsforebyggande/lokala-ordningsforeskrifter/",
+     "typ": "foreskrift",
+     "status": "kontrollerad",
+     "sha256": "02e90d8ff6718bd3674ef3b28f92430378d849850fb668d8f09023c900ccf08b",
+     "tecken": 23683,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
    "status": "kontrollerad",
-   "dokument": "Lokala ordningsföreskrifter",
-   "url": "https://avesta.se/stod-och-omsorg/trygghet-och-sakerhet/brottsforebyggande/lokala-ordningsforeskrifter/",
-   "sha256": "02e90d8ff6718bd3674ef3b28f92430378d849850fb668d8f09023c900ccf08b",
-   "tecken": 23683,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "har_dronardokument": false,
+   "antal_traffar": 0
   },
   "Östhammar": {
-   "status": "endast-lanksida",
-   "dokument": "Lokala ordningsföreskrifter",
-   "url": "https://www.osthammar.se/sv/dokument/ordningsregler-och-foreskrifter/lokala-ordningsforeskrifter/",
-   "sha256": "99eb3428fa13b9424b2bb929260b54ba50b7de47dbecf32cb235a3f8f620f19a",
-   "tecken": 2929,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "dokument": [
+    {
+     "namn": "Lokala ordningsföreskrifter",
+     "url": "https://www.osthammar.se/sv/dokument/ordningsregler-och-foreskrifter/lokala-ordningsforeskrifter/",
+     "typ": "foreskrift",
+     "status": "endast-lanksida",
+     "sha256": "99eb3428fa13b9424b2bb929260b54ba50b7de47dbecf32cb235a3f8f620f19a",
+     "tecken": 2929,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
+   "status": "ofullstandig",
+   "har_dronardokument": false,
+   "antal_traffar": 0
   },
   "Bollnäs": {
-   "status": "endast-lanksida",
-   "dokument": "Lokala ordningsföreskrifter",
-   "url": "https://bollnas.se/kommun-och-politik/kommunfakta/regler-och-styrande-dokument/lokala-ordningsforeskrifter",
-   "sha256": "31de1977d42e5fa6d92ca1291a15e517ee8ab70f127684441db5216ace90da6e",
-   "tecken": 7963,
-   "kontrollerad": "2026-07-29",
-   "luftfartstraffar": [],
-   "marktraffar": []
+   "dokument": [
+    {
+     "namn": "Lokala ordningsföreskrifter",
+     "url": "https://bollnas.se/kommun-och-politik/kommunfakta/regler-och-styrande-dokument/lokala-ordningsforeskrifter",
+     "typ": "foreskrift",
+     "status": "endast-lanksida",
+     "sha256": "f5f84161e53a812904a9f72b99bc00e0aa5aadc89dc2bc70a8bd1b31b268803e",
+     "tecken": 7963,
+     "kontrollerad": "2026-07-29",
+     "luftfartstraffar": [],
+     "marktraffar": []
+    }
+   ],
+   "status": "ofullstandig",
+   "har_dronardokument": false,
+   "antal_traffar": 0
   }
  }
 }

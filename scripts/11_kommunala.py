@@ -40,37 +40,58 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib.common import (CACHE, DATA, ensure_dir, fetch, log, sha256_bytes,
                         today, write_json)
 
-# Kurerad lista. Varje post är en KONTROLLERAD källa med verifierbar URL.
-# Lägg till en kommun genom att lägga till dess föreskriftsdokument här.
+# METODEN, och varför den ändrades
+# ---------------------------------
+# Första versionen sökte efter drönartermer INUTI ett dokument per kommun —
+# de allmänna lokala ordningsföreskrifterna — och drog av noll träffar
+# slutsatsen "Höganäs: ingenting om drönare". Det var sant om dokumentet och
+# falskt om kommunen: Höganäs publicerar "Riktlinjer för drönarverksamhet",
+# som en enkel sökning på kommunens webbplats hittar direkt. Daniel hittade
+# den på en sökning; jag hade sökt på fel sak.
+#
+# Registret listar därför dokument, inte kommuner, och varje dokument har en
+# `typ`:
+#
+#   foreskrift  — bindande för allmänheten (ordningsföreskrift m.m.)
+#   intern      — kommunens egna rutiner för SIN verksamhet, binder inte dig
+#
+# Klassningen bygger på dokumentets egen beskrivning av sig självt, som
+# lagras i `sjalvbeskrivning` så att den går att kontrollera.
 KOMMUNER = [
     ("Höganäs", "Allmänna lokala ordningsföreskrifter KFS 2026:11",
      "https://www.hoganas.se/download/18.3d4a511a188bd9ee1364e17/1782882140176/"
      "Allm%C3%A4nna%20lokala%20ordningsf%C3%B6reskrifter%20f%C3%B6r%20"
-     "H%C3%B6gan%C3%A4s%20kommun%20KFS%202026:11.pdf", "pdf"),
+     "H%C3%B6gan%C3%A4s%20kommun%20KFS%202026:11.pdf", "pdf", "foreskrift"),
+    ("Höganäs", "Riktlinjer för drönarverksamhet i Höganäs kommun",
+     "https://www.hoganas.se/download/18.7a54f188194d866594e4dce3/1740123018291/"
+     "Riktlinjer%20f%C3%B6r%20dr%C3%B6narverksamhet.pdf", "pdf", "intern"),
     ("Helsingborg", "Allmänna lokala ordningsföreskrifter, dec 2024",
      "https://media.helsingborg.se/uploads/networks/4/sites/141/2024/12/"
-     "allm-lok-ordn-foreskr-m-bilaga-1_4.pdf", "pdf"),
+     "allm-lok-ordn-foreskr-m-bilaga-1_4.pdf", "pdf", "foreskrift"),
     ("Stockholm", "Allmänna lokala ordningsföreskrifter",
      "https://start.stockholm/om-stockholms-stad/politik-och-demokrati/"
-     "styrdokument/allmanna-lokala-ordningsforeskrifter-i-stockholm/", "html"),
+     "styrdokument/allmanna-lokala-ordningsforeskrifter-i-stockholm/", "html", "foreskrift"),
     ("Eskilstuna", "Lokala ordningsföreskrifter",
      "https://www.eskilstuna.se/kommun-och-politik/trygg-och-saker-stad/"
-     "lokala-ordningsforeskrifter", "html"),
+     "lokala-ordningsforeskrifter", "html", "foreskrift"),
     ("Sandviken", "Lokala ordningsföreskrifter",
      "https://sandviken.se/kommunpolitik/lokalaforeskrifterochstyrdokument/"
-     "lokalaordningsforeskrifter.516.html", "html"),
+     "lokalaordningsforeskrifter.516.html", "html", "foreskrift"),
     ("Oxelösund", "Lokala ordningsföreskrifter",
      "https://www.oxelosund.se/trafik-och-infrastruktur/"
-     "lokala-ordningsforeskrifter", "html"),
+     "lokala-ordningsforeskrifter", "html", "foreskrift"),
     ("Avesta", "Lokala ordningsföreskrifter",
      "https://avesta.se/stod-och-omsorg/trygghet-och-sakerhet/brottsforebyggande/"
-     "lokala-ordningsforeskrifter/", "html"),
+     "lokala-ordningsforeskrifter/", "html", "foreskrift"),
     ("Östhammar", "Lokala ordningsföreskrifter",
      "https://www.osthammar.se/sv/dokument/ordningsregler-och-foreskrifter/"
-     "lokala-ordningsforeskrifter/", "html"),
+     "lokala-ordningsforeskrifter/", "html", "foreskrift"),
     ("Bollnäs", "Lokala ordningsföreskrifter",
      "https://bollnas.se/kommun-och-politik/kommunfakta/"
-     "regler-och-styrande-dokument/lokala-ordningsforeskrifter", "html"),
+     "regler-och-styrande-dokument/lokala-ordningsforeskrifter", "html", "foreskrift"),
+    ("Stockholm", "Så arbetar staden med drönare",
+     "https://start.stockholm/om-stockholms-stad/sa-arbetar-staden/dronare/",
+     "html", "intern"),
 ]
 
 # Luftfartstermer: skulle en föreskrift nämna drönare uttryckligen.
@@ -114,9 +135,10 @@ def utdrag(text, m, marg=110):
 def main():
     katalog = ensure_dir(os.path.join(CACHE, "kommunala"))
     kommuner = {}
-    for namn, dokumentnamn, url, form in KOMMUNER:
-        fil = os.path.join(katalog, re.sub(r"\W+", "_", namn) +
-                           (".pdf" if form == "pdf" else ".html"))
+    for namn, dokumentnamn, url, form, typ in KOMMUNER:
+        post = kommuner.setdefault(namn, {"dokument": []})
+        filnamn = re.sub(r"\W+", "_", namn + "-" + dokumentnamn)[:80]
+        fil = os.path.join(katalog, filnamn + (".pdf" if form == "pdf" else ".html"))
         try:
             if os.path.exists(fil):
                 with open(fil, "rb") as fh:
@@ -127,40 +149,65 @@ def main():
                     fh.write(ra)
             text = (text_ur_pdf if form == "pdf" else text_ur_html)(ra)
         except Exception as exc:  # noqa: BLE001
-            kommuner[namn] = {"status": "kunde-inte-hamtas", "fel": str(exc)[:120],
-                              "url": url}
+            post["dokument"].append({"namn": dokumentnamn, "url": url, "typ": typ,
+                                     "status": "kunde-inte-hamtas",
+                                     "fel": str(exc)[:120]})
             log(f"  {namn}: FEL — {exc}")
             continue
 
-        luft = [utdrag(text, m) for m in LUFTFART.finditer(text)][:5]
-        mark = [utdrag(text, m) for m in MARK.finditer(text)][:5]
-        # En sida som är för kort är en länksida, inte själva föreskriften. Att
-        # räkna den som "kontrollerad utan träff" vore att ljuga om täckningen.
-        fullstandig = len(text) >= MIN_TECKEN
-        kommuner[namn] = {
-            "status": "kontrollerad" if fullstandig else "endast-lanksida",
-            "dokument": dokumentnamn,
+        luft = [utdrag(text, m) for m in LUFTFART.finditer(text)][:6]
+        mark = [utdrag(text, m) for m in MARK.finditer(text)][:4]
+        fullstandig = len(text) >= MIN_TECKEN or typ == "intern"
+        post["dokument"].append({
+            "namn": dokumentnamn,
             "url": url,
+            "typ": typ,
+            "status": "kontrollerad" if fullstandig else "endast-lanksida",
             "sha256": sha256_bytes(ra),
             "tecken": len(text),
             "kontrollerad": today(),
             "luftfartstraffar": luft,
             "marktraffar": mark,
-        }
+        })
         flagga = "✓" if fullstandig else "!"
-        log(f"  {flagga} {namn}: {len(text)} tecken, "
-            f"{len(luft)} luftfartsträffar, {len(mark)} markträffar")
+        log(f"  {flagga} {namn} / {dokumentnamn[:44]}: {len(text)} tecken, "
+            f"{len(luft)} luftfartsträffar, {len(mark)} markträffar [{typ}]")
 
-    kontrollerade = [k for k, v in kommuner.items() if v.get("status") == "kontrollerad"]
-    med_luft = [k for k, v in kommuner.items() if v.get("luftfartstraffar")]
+    # En kommun räknas som kontrollerad när dess FÖRESKRIFT är läst i sin
+    # helhet. Interna riktlinjer är värdefulla att visa men binder inte
+    # allmänheten, och de får därför inte ensamma göra en kommun "kontrollerad".
+    for namn, post in kommuner.items():
+        foreskrifter = [d for d in post["dokument"]
+                        if d.get("typ") == "foreskrift"
+                        and d.get("status") == "kontrollerad"]
+        traffar = [d for d in post["dokument"]
+                   if d.get("luftfartstraffar") or d.get("marktraffar")]
+        post["status"] = "kontrollerad" if foreskrifter else "ofullstandig"
+        post["har_dronardokument"] = bool(
+            [d for d in post["dokument"] if d.get("luftfartstraffar")])
+        post["antal_traffar"] = len(traffar)
+
+    kontrollerade = [k for k, v in kommuner.items() if v["status"] == "kontrollerad"]
+    med_dok = [k for k, v in kommuner.items() if v["har_dronardokument"]]
 
     write_json(os.path.join(DATA, "kommunala-foreskrifter.json"), {
-        "schema_version": 1,
+        "schema_version": 2,
         "hamtningsdatum": today(),
         "beskrivning": (
-            "Kommunala ordningsföreskrifter, kontrollerade en kommun i taget. "
-            "Registret generaliserar INTE: en kommun som inte står här är inte "
-            "kontrollerad, vilket är något annat än att den saknar regler."),
+            "Kommunala dokument som rör drönare, kontrollerade en kommun i "
+            "taget. Registret generaliserar INTE: en kommun som inte står här "
+            "är inte kontrollerad, vilket är något annat än att den saknar "
+            "regler."),
+        "metodnot": (
+            "Första versionen sökte drönartermer inuti ETT dokument per kommun "
+            "och drog av noll träffar slutsatsen att kommunen saknade regler. "
+            "Det var fel sak att söka på: Höganäs publicerar Riktlinjer för "
+            "drönarverksamhet, som en sökning på kommunens webbplats hittar "
+            "direkt. Registret listar därför dokument, inte kommuner."),
+        "typnot": (
+            "typ=foreskrift binder allmänheten. typ=intern är kommunens egna "
+            "rutiner för sin egen verksamhet och binder inte en privat pilot — "
+            "men den kan innehålla uppgifter som är värda att läsa ändå."),
         "strukturell_not": (
             "En kommun får inte reglera luftrummet — det är Transportstyrelsen "
             "som beslutar om geografiska UAS-zoner enligt artikel 15 i EU "
@@ -168,12 +215,11 @@ def main():
             "lag. Kommunen råder däremot över marken, vilket kan träffa lyft "
             "och landning."),
         "antal_kontrollerade": len(kontrollerade),
-        "antal_med_luftfartstraff": len(med_luft),
+        "antal_med_dronardokument": len(med_dok),
         "kommuner": kommuner,
     })
-    log(f"Steg 11 klart: {len(kontrollerade)} kommuner kontrollerade, "
-        f"{len(med_luft)} med luftfartsträff "
-        f"({len(kommuner) - len(kontrollerade)} ofullständiga)")
+    log(f"Steg 11 klart: {len(kommuner)} kommuner, {len(kontrollerade)} med läst "
+        f"föreskrift, {len(med_dok)} med drönardokument ({', '.join(med_dok)})")
     return 0
 
 

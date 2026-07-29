@@ -527,3 +527,5 @@ tr.lag-tackning { background: var(--storning-bg); }
   font: inherit; cursor: pointer; background: none; border: 0;
   color: var(--text-svag); font-size: 1.2rem; padding: 0.2rem 0.5rem;
 }
+.kommundok { margin: 0.3rem 0 0.2rem; padding-left: 1rem; font-size: 0.85rem; }
+.kommundok li { margin-bottom: 0.3rem; }

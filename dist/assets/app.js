@@ -431,36 +431,44 @@
   function kommunrad(kommun) {
     var reg = (kommunData && kommunData.kommuner) || {};
     /* Kommunfältet är FLERVÄRT — ett område kan spänna över flera kommuner
-     * ("Båstad, Halmstad, Höganäs"). Och står man utanför alla områden finns
-     * ingen kommunuppgift alls; att då plocka kommunen från ett godtyckligt
+     * ("Båstad, Halmstad, Höganäs"). Står man utanför alla områden finns ingen
+     * kommunuppgift alls; att då plocka kommunen från ett godtyckligt
      * grannområde gav Helsingborg svaret "Båstad, Halmstad, Höganäs".
-     * Tjänsten gissar därför inte kommun — den säger vilka som är
-     * kontrollerade och överlåter åt läsaren att veta var hen står. */
-    var namn = String(kommun || "").split(/\s*,\s*/).filter(Boolean);
-    var traffade = namn.map(function (n) { return reg[n]; })
-      .filter(function (k) { return k && k.status === "kontrollerad"; });
+     * Tjänsten gissar därför inte kommun. */
+    var namn = String(kommun || "").split(/\s*,\s*/).filter(Boolean)
+      .filter(function (n) { return reg[n]; });
 
-    if (traffade.length) {
-      var k = traffade[0];
-      var i = namn.filter(function (n) { return reg[n] && reg[n].status === "kontrollerad"; });
-      if ((k.luftfartstraffar || []).length || (k.marktraffar || []).length) {
-        return "Kommunala föreskrifter för " + esc(i.join(", ")) +
-          " — <strong>träff</strong>, se " + esc(k.dokument);
-      }
-      return "Kommunala föreskrifter för " + esc(i.join(", ")) + " — kontrollerade " +
-        esc(k.kontrollerad) + ", <strong>ingenting om drönare eller farkost</strong> " +
-        'i <a href="' + esc(k.url) + '" rel="noopener">' + esc(k.dokument) + "</a>.";
+    if (!namn.length) {
+      var lista = Object.keys(reg).filter(function (n) {
+        return reg[n].status === "kontrollerad";
+      });
+      return "Kommunala dokument — <strong>inte kontrollerade för din kommun</strong>. " +
+        "Kommunen får inte reglera luftrummet, men råder över marken: " +
+        "parkreglementen och badplatsföreskrifter kan träffa lyft och landning." +
+        (lista.length ? " Hittills kontrollerade: " + esc(lista.join(", ")) + "." : "");
     }
 
-    var kontrollerade = Object.keys(reg).filter(function (n) {
-      return reg[n].status === "kontrollerad";
-    });
-    return "Kommunala föreskrifter — <strong>inte kontrollerade för din kommun</strong>. " +
-      "Kommunen får inte reglera luftrummet, men råder över marken: " +
-      "parkreglementen och badplatsföreskrifter kan träffa lyft och landning." +
-      (kontrollerade.length
-        ? " Hittills kontrollerade: " + esc(kontrollerade.join(", ")) + "."
-        : "");
+    return namn.map(function (n) {
+      var k = reg[n];
+      var dok = (k.dokument || []).filter(function (d) {
+        return d.status === "kontrollerad";
+      });
+      var bitar = dok.map(function (d) {
+        var traff = (d.luftfartstraffar || []).length;
+        return '<li><a href="' + esc(d.url) + '" rel="noopener">' + esc(d.namn) +
+          "</a> — " +
+          (d.typ === "intern"
+            ? "kommunens egna rutiner, binder inte en privat pilot"
+            : "föreskrift") +
+          ". Kontrollerad " + esc(d.kontrollerad) + ". " +
+          (traff
+            ? "<strong>" + traff + " träffar på drönare eller luftfart.</strong>"
+            : "Ingenting om drönare eller farkost.") + "</li>";
+      }).join("");
+      return "<strong>" + esc(n) + "</strong> — " + dok.length +
+        (dok.length === 1 ? " dokument kontrollerat" : " dokument kontrollerade") +
+        ":<ul class='kommundok'>" + bitar + "</ul>";
+    }).join("");
   }
 
   function luckorHtml(kommun) {

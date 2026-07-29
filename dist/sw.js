@@ -14,7 +14,7 @@
  * Ett bygge som misslyckas ska få sajten att se gammal ut, inte fräsch —
  * därför är HTML alltid nät-först och data alltid revalideras i bakgrunden.
  */
-var VERSION = "bb9ffbe8";
+var VERSION = "af83c4be";
 var SKAL = "dk-skal-" + VERSION;
 var DATA_CACHE = "dk-data-" + VERSION;
 var KARTRUTOR = "dk-kartrutor-v1";
