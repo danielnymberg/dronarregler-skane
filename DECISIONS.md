@@ -823,6 +823,76 @@ flagga tillståndsregimen och citera villkoret, inte påstå ett förbud.
 Licensen står som "Villkor okända" i metadatan. Det måste redas ut innan lagret
 läggs in.
 
+### D-67 — Kommunala dokument: sök på ämnet, inte inuti ett dokument
+Daniel hittade "Riktlinjer för drönarverksamhet i Höganäs kommun" på en enkel
+sökning. Registret sa "Höganäs — ingenting om drönare". Det var sant om det
+dokument jag kontrollerat och falskt om kommunen.
+
+Felet var metodiskt: jag sökte drönartermer INUTI de allmänna lokala
+ordningsföreskrifterna i stället för att söka på ÄMNET på kommunens webbplats.
+Registret listar därför dokument, inte kommuner, och varje dokument har en typ:
+
+  foreskrift  bindande för allmänheten
+  intern      kommunens egna rutiner för SIN verksamhet, binder inte en privat
+              pilot — men kan innehålla uppgifter värda att läsa
+
+En kommun räknas som kontrollerad först när dess FÖRESKRIFT är läst i sin
+helhet. Interna riktlinjer får inte ensamma göra en kommun "kontrollerad".
+
+Ur Höganäs riktlinje, ordagrant och värt att bära vidare:
+
+  "Kommunen har ett tiotal naturreservat, i vilka drönarflygning generellt är
+   förbjuden. Det ska dock påpekas att rättsläget är osäkert, då
+   länsstyrelserna inte äger befogenhet att själva besluta om sådana
+   restriktioner."
+
+Det är en invändning mot grunden för hela naturreservatslagret, från en kommun
+som samrått med länsstyrelsen Skåne.
+
+### D-68 — En säkerhetskontroll som inte kan köra får inte tiga
+`wfs_url()` hoppade över argument vars värde var None i stället för att TA BORT
+parametern. `resultType=hits` skickades därför med `outputFormat` kvar, servern
+svarade JSON i stället för XML, antalet gick inte att läsa — och avstämningen
+mot tyst kapning passerade som godkänd utan att ha körts. Loggen sa "servern
+uppger None", och det lästes förbi.
+
+Felet fanns i både steg 8 och steg 10. Steg 10 avbryter nu om antalet inte går
+att läsa.
+
+Kontrollen finns för att Naturvårdsregistrets server tyst kapade svaret vid 500
+poster (D-02). Att den sedan kunde sluta fungera utan att någon märkte det är
+samma felklass en nivå upp.
+
+### D-69 — Ett steg som inte cachar sitt råsvar går inte att bygga om
+Steg 10 hämtade 211 MB och cachade dem inte, till skillnad från steg 1 och 2.
+När lagringsmodellen visade sig behöva göras om — en enda fil blev 37 MB mot
+Cloudflares tak på 25 — kostade det en omhämtning, och ett hastigt
+omindexeringsförsök sprängde katalogen till 4,8 GB innan källfilerna hunnit
+säkras.
+
+Råsvaret cachas nu. Regeln är enkel: ett steg vars utdata kan behöva byggas om
+ska aldrig behöva fråga källan igen.
+
+### D-70 — Jättar lagras del för del i rutnätet
+"Torne och Kalix älvsystem" (SE0820430) har 3 980 polygondelar och 1,95
+miljoner punkter spridda över hela Norrbotten. Som en fil blir den 37 MB.
+
+Områden över 5 MB lagras därför del för del: varje polygondel läggs bara i de
+rutor dess EGEN omslutande rektangel rör. Ingen geometri ändras — det är samma
+polygoner, bara indexerade finare — och punkt-i-polygon blir snabbare, eftersom
+en ruta bara bär de delar som faktiskt kan träffas.
+
+### D-71 — Mönstret i dagens tre fel
+Daniels fynd och mina två egna är samma sak i olika skepnad:
+
+  * Jag sökte i ETT dokument och drog en slutsats om KOMMUNEN.
+  * Avstämningen KUNDE INTE KÖRA och tolkades som godkänd.
+  * Steget kunde inte BYGGAS OM utan att fråga källan igen.
+
+Alla tre är fall där ett negativt utfall såg ut som ett positivt. Det är samma
+grundfel tjänsten är byggd för att undvika hos andra — att tystnad läses som
+besked — men i den egna metoden i stället för i datan.
+
 ## Öppna punkter
 
 - `base_url` pekar på pages.dev — byt när en skarp domän är bestämd.
