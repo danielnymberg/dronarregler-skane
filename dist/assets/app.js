@@ -203,6 +203,118 @@
     }).catch(function () { luftfartsCitat = {}; return luftfartsCitat; });
   }
 
+  /* ================================================ de allmänna reglerna ==
+   * 14 avsnitt ur 6 författningar, 14 kB. Bärs offline vid sidan av lfv.json
+   * och luftfart.json — de flesta regler som fäller en drönarpilot är inte
+   * platsbundna, och de ska därför visas ÄVEN när platsen är tyst. Ingen punkt
+   * i Sverige är regelfri. */
+  var reglerData = null;
+  function laddaRegler() {
+    if (reglerData) return Promise.resolve(reglerData);
+    return hamta(DATA + "/regler.json").then(function (d) {
+      reglerData = d;
+      return d;
+    }).catch(function () { reglerData = { avsnitt: [], kallor: {} }; return reglerData; });
+  }
+
+  /* ====================================================== drönarprofiler ==
+   * Vilka avståndsregler som gäller beror på drönarens klassmärkning och vikt.
+   * Det är en uppgift DU har och tjänsten inte har — precis som vägmärkets
+   * "gäller ej över 3,5 t" förutsätter att föraren vet vad fordonet väger.
+   *
+   * Flera profiler stöds, för de flesta har mer än en drönare. Den aktiva
+   * profilen visas i varje svar och kan aldrig döljas: risken Daniel själv
+   * pekade ut är att profilen står på 249 g medan drönaren i väskan väger 500. */
+  var PROFIL_NYCKEL = "dk-profiler-1";
+  var profiler = { lista: [], aktiv: -1 };
+
+  function laddaProfiler() {
+    try {
+      var r = JSON.parse(localStorage.getItem(PROFIL_NYCKEL) || "null");
+      if (r && Array.isArray(r.lista)) profiler = r;
+    } catch (e) { /* trasig lagring — kör vidare utan profil */ }
+  }
+  function sparaProfiler() {
+    try { localStorage.setItem(PROFIL_NYCKEL, JSON.stringify(profiler)); } catch (e) { }
+  }
+  function aktivProfil() {
+    return profiler.aktiv >= 0 ? profiler.lista[profiler.aktiv] || null : null;
+  }
+
+  /* Härledningen är ren avbildning av förordningstexten, inte en bedömning.
+   * Klassmärkta drönare enligt UAS.OPEN.020/030/040, omärkta enligt artikel 20.
+   * `varfor` visas i gränssnittet så att härledningen går att kontrollera. */
+  function underkategori(p) {
+    if (!p) return null;
+    var k = String(p.klass || "").toUpperCase();
+    var g = Number(p.gram) || 0;
+    if (k === "C0") return { kat: "A1", varfor: "klass C0" };
+    if (k === "C1") return { kat: "A1", varfor: "klass C1" };
+    if (k === "C2") return { kat: "A2", varfor: "klass C2 (får även flygas i A3)" };
+    if (k === "C3") return { kat: "A3", varfor: "klass C3" };
+    if (k === "C4") return { kat: "A3", varfor: "klass C4" };
+    if (g > 0 && g < 250) return { kat: "A1", varfor: "omärkt, under 250 g — artikel 20 a" };
+    if (g >= 250 && g < 25000) return { kat: "A3", varfor: "omärkt, " + g + " g — artikel 20 b" };
+    if (g >= 25000) return { kat: null, varfor: "över 25 kg — inte öppen kategori" };
+    return null;
+  }
+
+  function profilChip() {
+    var p = aktivProfil();
+    var uk = underkategori(p);
+    if (!p) {
+      return '<button class="profilchip tom" id="profilknapp">' +
+        "Ingen drönare vald — alla underkategorier visas ▾</button>";
+    }
+    return '<button class="profilchip" id="profilknapp">' +
+      '<span class="pnamn">' + esc(p.namn || "Drönare") + "</span>" +
+      '<span class="pdet">' + esc(p.klass || "omärkt") + " · " + esc(p.gram) + " g" +
+      (uk && uk.kat ? " · " + esc(uk.kat) : "") + "</span> ▾</button>" +
+      (uk ? '<p class="pharledning">' + esc(uk.varfor) + "</p>" : "");
+  }
+
+  /* --------------------------------------------- regelinventeringen ------
+   * Svarets andra halva: en checklista över de regler som gäller, som en
+   * skyltinventering. Raden visar kategorin (statisk text som säger VAD raden
+   * handlar om) och en ORDAGRANN nyckelfras ur författningen — aldrig en
+   * sammanfattning. Hela citatet fälls ut. */
+  function regelinventering() {
+    if (!reglerData || !reglerData.avsnitt.length) return "";
+    var uk = underkategori(aktivProfil());
+    var galler = [], ovriga = [];
+    reglerData.avsnitt.forEach(function (a) {
+      // Utan vald profil visas ALLA underkategorier. Att fälla ihop dem när
+      // tjänsten inte vet vilken som gäller vore att dölja regler den inte har
+      // grund att sortera bort.
+      var traff = !a.galler_underkategori || !uk || !uk.kat ||
+        a.galler_underkategori.indexOf(uk.kat) >= 0;
+      (traff ? galler : ovriga).push(a);
+    });
+
+    function rad(a) {
+      var k = reglerData.kallor[a.kalla] || {};
+      return "<details class='regelrad'><summary>" +
+        '<span class="rkat">' + esc(a.kategori) + "</span>" +
+        '<span class="rfras">' + esc(a.nyckelfras || a.fraga) + "</span>" +
+        '<span class="rkalla">' + esc(k.kortnamn || "") + " " + esc(a.referens) +
+        "</span></summary>" +
+        '<blockquote>' + esc(a.text) + "</blockquote>" +
+        '<p class="kallrad"><a href="/regler/#' + esc(a.id) + '">' +
+        esc(k.titel || "") + " " + esc(a.referens) + "</a></p></details>";
+    }
+
+    var h = '<h2 class="invrubrik">Regler som gäller här</h2>' +
+      '<p class="notis">Gäller oavsett plats. Klicka för författningstexten ' +
+      "ordagrant.</p>" + profilChip() +
+      '<div class="regelinv">' + galler.map(rad).join("") + "</div>";
+    if (ovriga.length) {
+      h += "<details class='ovrigareg'><summary>" + ovriga.length +
+        " regler som gäller andra underkategorier</summary><div class='regelinv'>" +
+        ovriga.map(rad).join("") + "</div></details>";
+    }
+    return h;
+  }
+
   /* ================================================== ljud och vibration ==
    * Tonen skapas i WebAudio i stället för att laddas som fil: den fungerar
    * offline utan att något behöver cachas, och AudioContext:en skapas vid
@@ -660,7 +772,7 @@
 
     function svaraForPosition(lon, lat, acc) {
       visaPanel('<p class="laddstatus">Kontrollerar …</p>');
-      Promise.all([laddaLfv(), laddaLuftfart(), underlagFor(lon, lat)])
+      Promise.all([laddaLfv(), laddaLuftfart(), underlagFor(lon, lat), laddaRegler()])
         .then(function (allt) {
           var u = allt[2], omraden = u.omraden, sett = {};
           var kandidater = u.rader.filter(function (r) {
@@ -728,6 +840,7 @@
     }
 
     function visaSvar(lon, lat, traffar, rader, geometrier, citat, acc, kommun) {
+      sistaSvar = [lon, lat, traffar, rader, geometrier, citat, acc, kommun];
       var res = bedom(lon, lat, traffar, citat, kommun);
       var lage = LAGE[res.niva];
       var rubrik = (lage.svag && !foreskriftBelagd(res)) ? lage.svag : lage.rubrik;
@@ -768,6 +881,8 @@
              "</div>";
       }
 
+      h += regelinventering();
+
       var nara = narliggande(lon, lat, traffar.map(function (o) { return o.nvrid; }),
                              rader || [], geometrier || {});
       if (nara.length) {
@@ -788,6 +903,74 @@
       visaPanel(h, String(res.niva));
       return res;
     }
+
+    /* ------------------------------------------------------- profilbyte */
+    var sistaSvar = null;      // för omritning när profilen ändras
+
+    function visaProfilval() {
+      var lista = profiler.lista.map(function (p, i) {
+        var uk = underkategori(p);
+        return '<li><button class="profilval' + (i === profiler.aktiv ? " vald" : "") +
+          '" data-i="' + i + '">' + esc(p.namn || "Drönare") + " — " +
+          esc(p.klass || "omärkt") + " · " + esc(p.gram) + " g" +
+          (uk && uk.kat ? " · " + esc(uk.kat) : "") +
+          '</button> <button class="profilbort" data-bort="' + i + '">×</button></li>';
+      }).join("");
+      visaPanel(
+        '<div class="profilform"><h2>Vilken drönare flyger du med?</h2>' +
+        '<p class="notis">Avståndsreglerna beror på klassmärkning och startmassa. ' +
+        "Uppgiften står på drönaren eller i dess manual.</p>" +
+        (lista ? "<ul class='profillista'>" + lista + "</ul>" : "") +
+        '<label>Namn<input id="pnamn" placeholder="t.ex. Mini 4 Pro"></label>' +
+        '<label>Klassmärkning<select id="pklass">' +
+        ['omärkt', 'C0', 'C1', 'C2', 'C3', 'C4'].map(function (k) {
+          return '<option value="' + (k === "omärkt" ? "" : k) + '">' + k + "</option>";
+        }).join("") + "</select></label>" +
+        '<label>Startmassa i gram<input id="pgram" type="number" inputmode="numeric" ' +
+        'placeholder="249"></label>' +
+        '<button class="storknapp primar" id="plagg">Lägg till</button>' +
+        (profiler.lista.length
+          ? '<button class="storknapp" id="pingen">Använd ingen profil</button>' : "") +
+        "</div>");
+    }
+
+    function ritaOmSvar() {
+      if (sistaSvar) {
+        visaSvar.apply(null, sistaSvar);
+      } else {
+        panelEl.classList.remove("oppen");
+      }
+    }
+
+    // Delegerad hantering — panelens innehåll byts ut hela tiden.
+    panelEl.addEventListener("click", function (e) {
+      var t2 = e.target.closest ? e.target.closest("button") : null;
+      if (!t2) return;
+      if (t2.id === "profilknapp") { visaProfilval(); return; }
+      if (t2.classList.contains("profilval")) {
+        profiler.aktiv = Number(t2.getAttribute("data-i"));
+        sparaProfiler(); ritaOmSvar(); return;
+      }
+      if (t2.hasAttribute("data-bort")) {
+        var i = Number(t2.getAttribute("data-bort"));
+        profiler.lista.splice(i, 1);
+        if (profiler.aktiv === i) profiler.aktiv = -1;
+        else if (profiler.aktiv > i) profiler.aktiv--;
+        sparaProfiler(); visaProfilval(); return;
+      }
+      if (t2.id === "pingen") { profiler.aktiv = -1; sparaProfiler(); ritaOmSvar(); return; }
+      if (t2.id === "plagg") {
+        var gram = Number(document.getElementById("pgram").value);
+        if (!gram) { document.getElementById("pgram").focus(); return; }
+        profiler.lista.push({
+          namn: document.getElementById("pnamn").value || "Drönare",
+          klass: document.getElementById("pklass").value,
+          gram: gram
+        });
+        profiler.aktiv = profiler.lista.length - 1;
+        sparaProfiler(); ritaOmSvar();
+      }
+    });
 
     /* --------------------------------------------------------- vaktläget */
     var vakt = { pa: false, id: null, senasteNyckel: null };
@@ -856,7 +1039,7 @@
     });
 
     laddaForVy();
-    Promise.all([laddaLfv(), laddaLuftfart()]).then(function () {
+    Promise.all([laddaLfv(), laddaLuftfart(), laddaRegler()]).then(function () {
       ritaLfv();
       if (lfvMeta) {
         var el = document.getElementById("lfvmeta");
@@ -980,6 +1163,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    laddaProfiler();
     pwa();
     if (document.getElementById("karta")) kartappen();
     if (document.getElementById("minikarta")) minikarta();

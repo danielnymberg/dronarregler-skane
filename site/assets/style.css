@@ -465,3 +465,65 @@ tr.lag-tackning { background: var(--storning-bg); }
 
 .handlingar li.villkorad { background: var(--okant-bg); border-radius: 4px; }
 .handlingar li.villkorad .hnamn::before { content: "◐ "; color: var(--okant-kant); }
+
+/* -------------------------------------- drönarprofil och regelinventering */
+.profilchip {
+  font: inherit; font-size: 0.85rem; cursor: pointer;
+  display: inline-flex; gap: 0.4rem; align-items: baseline;
+  background: var(--bg-mjuk); color: var(--text);
+  border: 1px solid var(--linje); border-radius: 999px;
+  padding: 0.3rem 0.8rem; margin: 0.2rem 0 0.4rem;
+}
+.profilchip .pnamn { font-weight: 600; }
+.profilchip .pdet { color: var(--text-svag); }
+.profilchip.tom { border-style: dashed; color: var(--text-svag); }
+.pharledning {
+  margin: 0 0 0.6rem; font-size: 0.8rem; color: var(--text-svag);
+  padding-left: 0.8rem;
+}
+
+.invrubrik { margin-top: 1.4rem; }
+.regelinv { border-top: 1px solid var(--linje); }
+.regelrad { border-bottom: 1px solid var(--linje); margin: 0; }
+/* En rad per regel, allt i en spalt. Ett tidigare grid-upplägg lade källan i
+ * en nowrap-kolumn till höger, som tog så mycket bredd att nyckelfrasen
+ * pressades ned till ett par ord per rad. */
+.regelrad > summary {
+  padding: 0.55rem 0.2rem; cursor: pointer; font-size: 0.9rem;
+}
+.regelrad .rkat { font-weight: 600; display: block; }
+.regelrad .rfras {
+  display: block; color: var(--text-svag); font-size: 0.86rem;
+  margin-top: 0.1rem;
+}
+.regelrad .rkalla {
+  display: block; color: var(--text-svag); font-size: 0.76rem;
+  margin-top: 0.15rem; letter-spacing: 0.01em;
+}
+.regelrad blockquote {
+  margin: 0.2rem 0 0.6rem; padding-left: 0.8rem;
+  border-left: 3px solid var(--last-kant);
+  font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem;
+}
+.ovrigareg { margin: 0.6rem 0; }
+.ovrigareg > summary { font-size: 0.85rem; color: var(--text-svag); cursor: pointer; }
+
+.profilform label { display: block; margin: 0.6rem 0; font-size: 0.9rem; }
+.profilform input, .profilform select {
+  display: block; width: 100%; font: inherit; margin-top: 0.2rem;
+  padding: 0.5rem; border: 1px solid var(--linje); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+.profilform .storknapp { width: 100%; justify-content: center; margin-top: 0.5rem; }
+.profillista { list-style: none; padding: 0; margin: 0.5rem 0; }
+.profillista li { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.3rem; }
+.profilval {
+  flex: 1; text-align: left; font: inherit; font-size: 0.88rem; cursor: pointer;
+  padding: 0.5rem 0.7rem; border: 1px solid var(--linje); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+.profilval.vald { border-color: var(--lank); border-width: 2px; font-weight: 600; }
+.profilbort {
+  font: inherit; cursor: pointer; background: none; border: 0;
+  color: var(--text-svag); font-size: 1.2rem; padding: 0.2rem 0.5rem;
+}

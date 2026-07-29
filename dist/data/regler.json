@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "hamtningsdatum": "2026-07-28",
+ "hamtningsdatum": "2026-07-29",
  "kallor": {
   "eu947": {
    "titel": "Kommissionens genomförandeförordning (EU) 2019/947",
@@ -10,7 +10,7 @@
    "url": "https://eur-lex.europa.eu/legal-content/SV/TXT/?uri=CELEX:32019R0947",
    "hamtad_fran": "https://publications.europa.eu/resource/cellar/819291ca-8c1c-11e9-9369-01aa75ed71a1",
    "sha256": "8b64ad9487bed41a4b5a90a01e1ebe9f395eaa9ccc496a102315494a5d3193c4",
-   "hamtad": "2026-07-28",
+   "hamtad": "2026-07-29",
    "tecken": 85054
   },
   "tsfs2017110": {
@@ -21,7 +21,7 @@
    "url": "https://www.transportstyrelsen.se/TSFS/TSFS%202017_110.pdf",
    "hamtad_fran": "https://www.transportstyrelsen.se/TSFS/TSFS%202017_110.pdf",
    "sha256": "4e46980776db6b8a88086fc2a11955950bf6f328f5e2ac10bca09c81703bb81a",
-   "hamtad": "2026-07-28",
+   "hamtad": "2026-07-29",
    "tecken": 93060
   },
   "skyddslagen": {
@@ -32,8 +32,30 @@
    "url": "https://rkrattsbaser.gov.se/sfst?bet=2010:305",
    "hamtad_fran": "https://rkrattsbaser.gov.se/sfst?bet=2010:305",
    "sha256": "f96a48b8768cfb97cecc6fefa224c9d0d3fc8d22b5e243b070ca9a731a5dff1f",
-   "hamtad": "2026-07-28",
+   "hamtad": "2026-07-29",
    "tecken": 18627
+  },
+  "miljobalken": {
+   "titel": "Miljöbalk (1998:808)",
+   "kortnamn": "Miljöbalken",
+   "beskrivning": "bl.a. tillståndsplikt i Natura 2000-områden",
+   "myndighet": "Sveriges riksdag",
+   "url": "https://rkrattsbaser.gov.se/sfst?bet=1998:808",
+   "hamtad_fran": "https://rkrattsbaser.gov.se/sfst?bet=1998:808",
+   "sha256": "f76224dc59ef98b85416dfc53f4f047add8eef8c33140e374eac3356651293f9",
+   "hamtad": "2026-07-29",
+   "tecken": 444899
+  },
+  "geoinfolagen": {
+   "titel": "Lag (2016:319) om skydd för geografisk information",
+   "kortnamn": "Lag 2016:319",
+   "beskrivning": "spridningstillstånd för bilder tagna från luften",
+   "myndighet": "Sveriges riksdag",
+   "url": "https://rkrattsbaser.gov.se/sfst?bet=2016:319",
+   "hamtad_fran": "https://rkrattsbaser.gov.se/sfst?bet=2016:319",
+   "sha256": "0c3d5f4d1143443fa7783ca0e85252246ba22cf9aaf4ba3c88ac49d30af5365f",
+   "hamtad": "2026-07-29",
+   "tecken": 9065
   },
   "luftfartslagen": {
    "titel": "Luftfartslag (2010:500)",
@@ -43,12 +65,15 @@
    "url": "https://rkrattsbaser.gov.se/sfst?bet=2010:500",
    "hamtad_fran": "https://rkrattsbaser.gov.se/sfst?bet=2010:500",
    "sha256": "9ea16db218e7572bfd437ecca52f023a3d3acdc25d39367f18098ffa4c579afc",
-   "hamtad": "2026-07-28",
+   "hamtad": "2026-07-29",
    "tecken": 97289
   }
  },
  "avsnitt": [
   {
+   "kategori": "Öppen kategori",
+   "galler_underkategori": null,
+   "nyckelfras": "inom synhåll",
    "id": "oppen-kategori",
    "grupp": "Grunderna",
    "fraga": "Vad krävs för att flygningen ska räknas som ”öppen kategori”?",
@@ -60,6 +85,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Höjd",
+   "galler_underkategori": null,
+   "nyckelfras": "120 meter från den närmsta punkten på jordytan",
    "id": "hojd",
    "grupp": "Grunderna",
    "fraga": "Hur högt får jag flyga?",
@@ -71,6 +99,11 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Avstånd till människor",
+   "galler_underkategori": [
+    "A1"
+   ],
+   "nyckelfras": "folksamlingar",
    "id": "a1",
    "grupp": "Avstånd till människor och bebyggelse",
    "fraga": "Underkategori A1 — vad gäller närmast människor?",
@@ -82,6 +115,11 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Avstånd till människor",
+   "galler_underkategori": [
+    "A2"
+   ],
+   "nyckelfras": "minst 30 meter",
    "id": "a2",
    "grupp": "Avstånd till människor och bebyggelse",
    "fraga": "Underkategori A2 — hur nära människor får jag flyga?",
@@ -93,6 +131,11 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Avstånd till bebyggelse",
+   "galler_underkategori": [
+    "A3"
+   ],
+   "nyckelfras": "minst 150 meter från bostads-, affärs-, industri- eller rekreationsområden",
    "id": "a3",
    "grupp": "Avstånd till människor och bebyggelse",
    "fraga": "Underkategori A3 — får jag flyga över villaområden och hamnar?",
@@ -104,6 +147,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Underkategori",
+   "galler_underkategori": null,
+   "nyckelfras": "under 250 gram",
    "id": "aldre-dronare",
    "grupp": "Avstånd till människor och bebyggelse",
    "fraga": "Min drönare saknar klassmärkning — vilken underkategori gäller då?",
@@ -115,6 +161,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Luftrum — kontrollzon",
+   "galler_underkategori": null,
+   "nyckelfras": "klarering",
    "id": "luftrum",
    "grupp": "Luftrum",
    "fraga": "Vad gäller i en kontrollzon (CTR)?",
@@ -126,6 +175,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Luftrum — TIZ och TIA",
+   "galler_underkategori": null,
+   "nyckelfras": "dubbelriktad radioförbindelse",
    "id": "tiz",
    "grupp": "Luftrum",
    "fraga": "Vad gäller i trafikinformationszon (TIZ) och trafikinformationsområde (TIA)?",
@@ -137,6 +189,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Luftrum — R- och D-område",
+   "galler_underkategori": null,
+   "nyckelfras": "bara ske efter tillstånd",
    "id": "rd-omrade",
    "grupp": "Luftrum",
    "fraga": "Vad gäller i restriktionsområde (R) och farligt område (D)?",
@@ -148,6 +203,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Luftrum — trafikzon",
+   "galler_underkategori": null,
+   "nyckelfras": "samråd med berörd flygplats",
    "id": "atz",
    "grupp": "Luftrum",
    "fraga": "Vad gäller i trafikzon (ATZ)?",
@@ -159,6 +217,9 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Geografiska UAS-zoner",
+   "galler_underkategori": null,
+   "nyckelfras": "geografiska UAS-zoner",
    "id": "geozoner",
    "grupp": "Zoner och skyddsobjekt",
    "fraga": "Vem bestämmer var det finns drönarzoner, och vad får de bestämma?",
@@ -170,6 +231,37 @@
    "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
   },
   {
+   "kategori": "Natura 2000",
+   "galler_underkategori": null,
+   "nyckelfras": "på ett betydande sätt kan påverka miljön",
+   "id": "natura2000",
+   "grupp": "Zoner och skyddsobjekt",
+   "fraga": "Vad gäller i ett Natura 2000-område?",
+   "kalla": "miljobalken",
+   "referens": "7 kap 28 a §",
+   "text": "28 a § Tillstånd krävs för att bedriva verksamheter eller vidta åtgärder som på ett betydande sätt kan påverka miljön i ett naturområde som har förtecknats enligt 27 § första stycket 1 eller 2. Tillstånd enligt första stycket krävs inte för verksamheter och åtgärder som direkt hänger samman med eller är nödvändiga för skötseln och förvaltningen av det berörda området. Lag (2001:437).",
+   "tecken": 386,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "kategori": "Publicering",
+   "galler_underkategori": null,
+   "nyckelfras": "förbjudet att sprida",
+   "id": "spridning",
+   "grupp": "Efter flygningen",
+   "fraga": "Får jag publicera bilderna?",
+   "kalla": "geoinfolagen",
+   "referens": "9 §",
+   "text": "9 § Om inte något annat följer av 10 eller 11 §, är det förbjudet att sprida en sammanställning av geografisk information 1. om förhållanden i ett visst vattenområde eller en viss sträcka av ett vattenområde som avser Sveriges sjöterritorium, med undantag av insjöar, vattendrag och kanaler, eller 2. över andra delar av svenskt territorium, om informationen har inhämtats från luftfartyg genom fotografering eller liknande registrering. Regeringen eller den myndighet som regeringen bestämmer får i enskilda fall besluta om tillstånd till spridning enligt första stycket. Tillstånd ska ges om spridningen inte kan antas medföra skada för totalförsvaret. Beslutet om tillstånd får innehålla villkor om att den geografiska informationen endast får användas för ett visst ändamål eller efter iakttagande av särskilda säkerhetsåtgärder. Efter medgivande från den som söker tillstånd får retuscheringsåtgärder i sammanställningen göras av regeringen eller den myndighet som regeringen bestämmer, om det behövs för att kunna meddela ett tillstånd.",
+   "tecken": 1042,
+   "verifierad": true,
+   "verifieringsmetod": "ordagrann strängmatchning mot normaliserad källtext efter extraktion"
+  },
+  {
+   "kategori": "Skyddsobjekt",
+   "galler_underkategori": null,
+   "nyckelfras": "tillträde med hjälp av en obemannad farkost",
    "id": "skyddsobjekt",
    "grupp": "Zoner och skyddsobjekt",
    "fraga": "Vad gäller vid ett skyddsobjekt?",

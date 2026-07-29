@@ -36,7 +36,10 @@ var SKALFILER = [
 /* De här är svaret på nivå 1-frågan och måste finnas offline. */
 var OFFLINEDATA = [
   "/data/lfv.json",
-  "/data/luftfart.json"
+  "/data/luftfart.json",
+  // De allmänna reglerna är 14 kB och gäller överallt — de ska finnas offline
+  // av precis samma skäl som luftrummet.
+  "/data/regler.json"
 ];
 
 self.addEventListener("install", function (e) {

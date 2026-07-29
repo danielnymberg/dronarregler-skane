@@ -79,6 +79,24 @@ KALLOR = {
         "lasbar_url": "https://rkrattsbaser.gov.se/sfst?bet=2010:305",
         "format": "html",
     },
+    "miljobalken": {
+        "titel": "Miljöbalk (1998:808)",
+        "kortnamn": "Miljöbalken",
+        "beskrivning": "bl.a. tillståndsplikt i Natura 2000-områden",
+        "myndighet": "Sveriges riksdag",
+        "url": "https://rkrattsbaser.gov.se/sfst?bet=1998:808",
+        "lasbar_url": "https://rkrattsbaser.gov.se/sfst?bet=1998:808",
+        "format": "html",
+    },
+    "geoinfolagen": {
+        "titel": "Lag (2016:319) om skydd för geografisk information",
+        "kortnamn": "Lag 2016:319",
+        "beskrivning": "spridningstillstånd för bilder tagna från luften",
+        "myndighet": "Sveriges riksdag",
+        "url": "https://rkrattsbaser.gov.se/sfst?bet=2016:319",
+        "lasbar_url": "https://rkrattsbaser.gov.se/sfst?bet=2016:319",
+        "format": "html",
+    },
     "luftfartslagen": {
         "titel": "Luftfartslag (2010:500)",
         "kortnamn": "Luftfartslagen",
@@ -170,6 +188,19 @@ AVSNITT = [
      "fran": "1. När medlemsstaterna för ändamål som avser säkerhet",
      "till": "Artikel 16"},
 
+    {"grupp": "Zoner och skyddsobjekt", "id": "natura2000",
+     "fraga": "Vad gäller i ett Natura 2000-område?",
+     "kalla": "miljobalken", "referens": "7 kap 28 a §",
+     "fran": "28 a § Tillstånd krävs för att bedriva verksamheter",
+     "till": "28 b § Tillstånd enligt 28 a §"},
+
+    {"grupp": "Efter flygningen", "id": "spridning",
+     "fraga": "Får jag publicera bilderna?",
+     "kalla": "geoinfolagen", "referens": "9 §",
+     "fran": "9 § Om inte något annat följer av 10 eller 11 §, är det förbjudet "
+             "att sprida en sammanställning av geografisk information",
+     "till": "10 §"},
+
     {"grupp": "Zoner och skyddsobjekt", "id": "skyddsobjekt",
      "fraga": "Vad gäller vid ett skyddsobjekt?",
      "kalla": "skyddslagen", "referens": "7 §",
@@ -199,6 +230,31 @@ MASTE_FINNAS = {
     "a2": ["minst 30 meter"],
     "a1": ["folksamlingar"],
     "aldre-dronare": ["under 250 gram", "underkategori A3"],
+    "natura2000": ["på ett betydande sätt kan påverka miljön"],
+    "spridning": ["förbjudet att sprida"],
+}
+
+
+# Inventeringsraden i appen: kort kategorinamn (statisk gränssnittstext som
+# säger VAD raden handlar om, inte vad regeln säger) och vilken underkategori
+# avsnittet gäller. `nyckelfras` tas ur MASTE_FINNAS, alltså en formulering som
+# redan är verifierad ordagrann — inventeringsraden citerar därför källan i
+# stället för att sammanfatta den.
+KATEGORI = {
+    "oppen-kategori": ("Öppen kategori", None),
+    "hojd": ("Höjd", None),
+    "a1": ("Avstånd till människor", ["A1"]),
+    "a2": ("Avstånd till människor", ["A2"]),
+    "a3": ("Avstånd till bebyggelse", ["A3"]),
+    "aldre-dronare": ("Underkategori", None),
+    "luftrum": ("Luftrum — kontrollzon", None),
+    "tiz": ("Luftrum — TIZ och TIA", None),
+    "rd-omrade": ("Luftrum — R- och D-område", None),
+    "atz": ("Luftrum — trafikzon", None),
+    "geozoner": ("Geografiska UAS-zoner", None),
+    "skyddsobjekt": ("Skyddsobjekt", None),
+    "natura2000": ("Natura 2000", None),
+    "spridning": ("Publicering", None),
 }
 
 
@@ -300,7 +356,11 @@ def main():
         if len(utdrag) < 40:
             fel.append(f"{spec['id']}: utdraget för kort ({len(utdrag)} tecken)")
             continue
+        kategori, underkat = KATEGORI.get(spec["id"], (spec["grupp"], None))
         avsnitt.append({
+            "kategori": kategori,
+            "galler_underkategori": underkat,
+            "nyckelfras": (MASTE_FINNAS.get(spec["id"]) or [None])[0],
             "id": spec["id"], "grupp": spec["grupp"], "fraga": spec["fraga"],
             "kalla": spec["kalla"], "referens": spec["referens"],
             "text": utdrag, "tecken": len(utdrag),

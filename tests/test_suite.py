@@ -611,6 +611,74 @@ def test_c_golden(r):
     if not avvikande:
         r.notera(f"C11: {prov} citat oförändrade av träffordsmärkningen ✓")
 
+    # C12 Fot till meter, och zonunderkanten.
+    #
+    # Daniel fick en skärmdump där hela Helsingborg låg rött som
+    # RESTRIKTIONSOMRÅDE. ES R129 börjar på 400 ft = 122 m, medan öppen kategori
+    # tillåter högst 120 m. Omräkningen måste stämma exakt och underkanten måste
+    # följa med, annars är hela anti-larmningen verkningslös.
+    lfvfil2 = os.path.join(DIST, "data", "lfv.json")
+    if os.path.exists(lfvfil2):
+        with open(lfvfil2, encoding="utf-8") as fh:
+            lfv2 = json.load(fh)
+        fel_omrakning, saknar_m = [], []
+        for z in lfv2["zoner"]:
+            for kant, kant_m in (("underkant", "underkant_m"),
+                                 ("overkant", "overkant_m")):
+                v = str(z.get(kant) or "")
+                m = z.get(kant_m)
+                if re.fullmatch(r"\d+", v):
+                    vantat = -(-int(v) * 3048 // 10000)   # ceil(v * 0.3048)
+                    if m != vantat:
+                        fel_omrakning.append(f"{z['namn']} {kant}={v} → {m} (väntat {vantat})")
+                    continue
+                if v.upper() == "GND" and m != 0:
+                    fel_omrakning.append(f"{z['namn']} GND → {m}, väntat 0")
+                elif v and m is None and not re.match(r"^FL", v, re.I):
+                    saknar_m.append(f"{z['namn']} {kant}={v}")
+        r.kolla(not fel_omrakning,
+                f"C12: felaktig fot→meter-omräkning: {fel_omrakning[:5]}")
+
+        r129 = [z for z in lfv2["zoner"] if z["namn"] == "ES R129"]
+        if r129:
+            z = r129[0]
+            r.kolla(z["nar_marken"] is False and z["underkant_m"] == 122,
+                    f"C12: ES R129 måste ha underkant 122 m och nar_marken=False, "
+                    f"har {z.get('underkant_m')} / {z.get('nar_marken')}")
+        bromma = [z for z in lfv2["zoner"] if z["namn"] == "BROMMA CTR"]
+        if bromma:
+            r.kolla(bromma[0]["nar_marken"] is True,
+                    "C12: BROMMA CTR måste fortsatt räknas som markberörande")
+        antal_hoga = sum(1 for z in lfv2["zoner"] if not z["nar_marken"])
+        r.notera(f"C12: {len(lfv2['zoner'])} zoner omräknade fot→meter, "
+                 f"{antal_hoga} når inte marken och dämpas i svaret ✓")
+
+    # C13 De allmänna reglerna finns offline och är kompletta.
+    #
+    # Ingen punkt i Sverige är regelfri. Svaret listar därför alltid de
+    # generella reglerna, även vid tom träff — och då måste de finnas i
+    # service workerns offlinecache, inte bara på nätet.
+    reglerfil2 = os.path.join(DIST, "data", "regler.json")
+    swfil2 = os.path.join(DIST, "sw.js")
+    if os.path.exists(reglerfil2) and os.path.exists(swfil2):
+        with open(reglerfil2, encoding="utf-8") as fh:
+            reg2 = json.load(fh)
+        with open(swfil2, encoding="utf-8") as fh:
+            sw2 = fh.read()
+        r.kolla("/data/regler.json" in sw2,
+                "C13: regler.json saknas i service workerns offlinedata")
+        utan_kategori = [a["id"] for a in reg2["avsnitt"] if not a.get("kategori")]
+        utan_fras = [a["id"] for a in reg2["avsnitt"] if not a.get("nyckelfras")]
+        r.kolla(not utan_kategori, f"C13: avsnitt utan kategori: {utan_kategori}")
+        # Nyckelfrasen är det inventeringsraden VISAR. Saknas den faller raden
+        # tillbaka på frågan, vilket är en rubrik och inte författningstext.
+        r.kolla(not utan_fras, f"C13: avsnitt utan verifierad nyckelfras: {utan_fras}")
+        for a in reg2["avsnitt"]:
+            if a.get("nyckelfras") and a["nyckelfras"] not in a["text"]:
+                r.fel.append(f"C13: nyckelfrasen för {a['id']} står inte i citatet")
+        r.notera(f"C13: {len(reg2['avsnitt'])} regelavsnitt med kategori och "
+                 f"ordagrann nyckelfras, cachade offline ✓")
+
     # C7 Regelsidans citat.
     reglerfil = os.path.join(DIST, "data", "regler.json")
     if not os.path.exists(reglerfil):
